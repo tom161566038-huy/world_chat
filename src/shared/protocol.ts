@@ -1,0 +1,16 @@
+/** WebSocket 协议。阶段 2 实现时按此扩展，保持向后兼容的字段名。 */
+
+import type { ChatMessage, LanguageCode, MessageTranslation } from "./types"
+
+export type ClientEvent =
+  | { type: "join"; roomId: string; displayName: string; language: LanguageCode }
+  | { type: "leave"; roomId: string }
+  | { type: "send"; roomId: string; text: string; sourceLang: LanguageCode }
+  | { type: "report"; messageId?: string; userId?: string; reason: string }
+
+export type ServerEvent =
+  | { type: "joined"; roomId: string; userId: string }
+  | { type: "message"; message: ChatMessage; translation?: MessageTranslation }
+  | { type: "history"; messages: Array<{ message: ChatMessage; translation?: MessageTranslation }> }
+  | { type: "error"; code: string; message: string }
+  | { type: "reported"; ok: true }

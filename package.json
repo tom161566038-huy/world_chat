@@ -1,0 +1,13 @@
+{
+  "name": "world_chat",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "全球实时翻译聊天室（PWA）",
+  "scripts": {
+    "dev": "echo \"阶段 1 完成前：请先按 TASKS.md 初始化 Vite 前端\"",
+    "dev:worker": "echo \"阶段 2 完成前：请先按 TASKS.md 配置 wrangler\"",
+    "build": "echo \"尚未初始化构建\"",
+    "deploy": "echo \"尚未配置部署\""
+  }
+}
