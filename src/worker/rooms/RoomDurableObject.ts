@@ -113,7 +113,9 @@ export class RoomDurableObject implements DurableObject {
 
     server.addEventListener("message", (event) => {
       const data = typeof event.data === "string" ? event.data : ""
-      void this.handleEvent(server, data)
+      // waitUntil：生产运行时在消息事件返回后可能取消未受保护的 Promise，
+      // 本地 wrangler dev 不会取消，所以这类问题只能在复现（阶段 7 线上修复）。
+      this.state.waitUntil(this.handleEvent(server, data))
     })
 
     server.addEventListener("close", () => {
@@ -150,7 +152,7 @@ export class RoomDurableObject implements DurableObject {
         )
         this.sendTo(socket, { type: "history", messages: items })
         // 历史里缺译文的不阻塞加入，异步补齐后单独推送（同语言的消息本来就不用翻）
-        void this.backfillHistory(socket, items, session.language)
+        this.state.waitUntil(this.backfillHistory(socket, items, session.language))
         return
       }
       case "send": {
@@ -206,7 +208,7 @@ export class RoomDurableObject implements DurableObject {
         await this.trimOldMessages()
         // 热路径：先广播原文；译文异步算好后只发给需要的人
         this.broadcast({ type: "message", message })
-        void this.fanOutTranslations(message)
+        this.state.waitUntil(this.fanOutTranslations(message))
         return
       }
       case "leave": {

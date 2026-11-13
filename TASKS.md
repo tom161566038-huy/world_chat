@@ -86,11 +86,17 @@
   广播均正常，**译文 20 秒以上始终未到**。原因：MyMemory 匿名额度按出站 IP
   计算，Workers 共享出口 IP 上额度常年耗尽/被拒，provider 抛错后在缓存层被
   吞成 null，于是原文照发、译文永不到、缓存为空。
-- 修复（版本 `15498aa2-f622-4bda-b224-e316924fdffd`）：默认 Provider 改为
+- 修复一（版本 `15498aa2-f622-4bda-b224-e316924fdffd`）：默认 Provider 改为
   「Google gtx（免密钥，Workers 出站可用）优先 + MyMemory 兜底」的 FallbackProvider。
   本机 wrangler dev 已验证：google 在本机超时后自动落到 MyMemory，译文正常
-  推送，重连后历史能带出缓存译文；生产方向（google 直连）本机网络无法访问
-  workers.dev，待复验。
-- 第三项待复验：用可访问 workers.dev 的网络按 `docs/DEPLOY.md` 的 5 步清单
-  重测，译文到达后勾选。本机（国内网络）无法访问 `*.workers.dev`（DNS 污染 +
-  SNI 阻断），线上验收只能由可访问网络完成。
+  推送，重连后历史能带出缓存译文。
+- 线上复验（版本 15498aa2）：译文仍 25 秒以上未到，provider 切换不是唯一原因。
+- 修复二（版本 `aeb6d613-5034-46eb-8a16-3de4351a3147`）：DO 里三处
+  fire-and-forget 异步（handleEvent、fanOutTranslations、backfillHistory 原为
+  `void` 挂起）全部改为 `this.state.waitUntil(...)`。生产运行时在事件处理
+  返回后会取消未受 waitUntil 保护的 Promise（本地 wrangler dev 不取消，因此
+  本地能出译文、线上原文到而译文永不到）。改后 typecheck 通过，本地回归
+  翻译链路正常。
+- 第三项待复验：本机（国内网络）无法访问 `*.workers.dev`（DNS 污染 + SNI
+  阻断），wrangler tail 日志流也连不上；线上验收只能由可访问网络完成，
+  按 `docs/DEPLOY.md` 的 5 步清单重测，译文到达后勾选。
