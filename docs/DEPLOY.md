@@ -27,7 +27,9 @@ https://world-chat.<你的子域>.workers.dev
 
 ## 环境变量 / 密钥（可选）
 
-默认翻译 Provider 是免密钥的 MyMemory，**不设置任何变量即可上线**。
+默认翻译 Provider 是「Google gtx 优先、MyMemory 兜底」的组合，两者都免密钥，
+**不设置任何变量即可上线**（MyMemory 对 Workers 共享出站 IP 的匿名额度常年耗尽，
+只作兜底；国内本地开发时 googleapis 不可达，会自动落到 MyMemory）。
 
 想换自托管的 LibreTranslate 时（生产推荐，质量更稳、额度自控）：
 
@@ -55,7 +57,8 @@ npx wrangler secret put LIBRETRANSLATE_KEY   # 自托管未开限流可跳过
 - **Durable Object 免费层**：要求 SQLite 存储（已按 `new_sqlite_classes` 配置）；
   DO 有单独的免费额度与限制，超限同样是停住而不是扣费。
 - **静态资源**：Workers Static Assets 免费提供，不占 Workers 请求额度。
-- **翻译接口**：MyMemory 匿名额度按 IP 每日有限（开发期够用）；上量前建议自托管
+- **翻译接口**：默认组合免密钥（Google gtx 为主、MyMemory 兜底）；gtx 是非官方
+  接口、MyMemory 匿名额度按 IP 每日有限，都只适合轻量使用；上量前建议自托管
   LibreTranslate（免费开源、零月费）并配置 `LIBRETRANSLATE_URL`。
 - **不要打开付费功能**：不绑信用卡、不开 Workers Paid、不用 Smart Placement 等
   付费项；`wrangler.toml` 里保持只有免费配置。

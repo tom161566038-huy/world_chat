@@ -80,10 +80,17 @@
 
 进度备注（2026-11-14）：
 
-- 已部署：正式 URL `https://world-chat.world-chat.workers.dev`（版本
-  `f0963269-2673-4484-bb01-d4b799829bde`，`wrangler deployments list` 确认 100%
-  流量已切上，含 11 个静态资源）。步骤与免费层注意点见 `docs/DEPLOY.md`。
-- 线上对聊验收未完成：本机网络无法访问 `*.workers.dev`（已确认 DNS 污染 +
-  SNI 阻断，与部署无关；Cloudflare API 通路正常）。待用可访问 workers.dev 的
-  网络（手机流量或代理）打开正式 URL，按 `docs/DEPLOY.md` 的 5 步验收清单
-  检查通过后，勾选第三项。
+- 已部署：正式 URL `https://world-chat.world-chat.workers.dev`。步骤与免费层
+  注意点见 `docs/DEPLOY.md`。
+- 线上对聊验收（第一次，版本 f0963269）：静态资源、/ws、join、history、原文
+  广播均正常，**译文 20 秒以上始终未到**。原因：MyMemory 匿名额度按出站 IP
+  计算，Workers 共享出口 IP 上额度常年耗尽/被拒，provider 抛错后在缓存层被
+  吞成 null，于是原文照发、译文永不到、缓存为空。
+- 修复（版本 `15498aa2-f622-4bda-b224-e316924fdffd`）：默认 Provider 改为
+  「Google gtx（免密钥，Workers 出站可用）优先 + MyMemory 兜底」的 FallbackProvider。
+  本机 wrangler dev 已验证：google 在本机超时后自动落到 MyMemory，译文正常
+  推送，重连后历史能带出缓存译文；生产方向（google 直连）本机网络无法访问
+  workers.dev，待复验。
+- 第三项待复验：用可访问 workers.dev 的网络按 `docs/DEPLOY.md` 的 5 步清单
+  重测，译文到达后勾选。本机（国内网络）无法访问 `*.workers.dev`（DNS 污染 +
+  SNI 阻断），线上验收只能由可访问网络完成。

@@ -2,11 +2,15 @@ import type { LanguageCode } from "../../shared/types"
 import type { TranslateProvider, TranslateRequest, TranslateResult } from "./types"
 
 /**
- * Provider 选型（阶段 4）：
+ * Provider 选型（阶段 4，阶段 7 线上修复时调整）：
  *
- * 1. 默认 MyMemoryProvider：免密钥的免费 HTTP 翻译接口，本地 `wrangler dev`
- *    不用申请任何密钥就能完成验证。限制是匿名额度按 IP 计算、质量一般，
- *    只适合开发期和轻量使用。
+ * 1. 默认：GoogleGtxProvider 优先 + MyMemoryProvider 兜底的组合。
+ *    - GoogleGtxProvider 走 Google 翻译网页版的公开 gtx 接口，免密钥、
+ *      免账单，从 Workers 的数据中心出站 IP 可正常访问。生产默认走它。
+ *    - MyMemoryProvider 免密钥，但匿名额度按出站 IP 计算，Workers 的
+ *      共享出口 IP 额度常年耗尽（返回 MYMEMORY WARNING / 403，译文全挂），
+ *      所以线上只作兜底；本地开发（国内网络访问不了 googleapis）会
+ *      自动落到它，体验不变。
  * 2. LibreTranslateProvider：开源、可自托管。设置 LIBRETRANSLATE_URL 即启用，
  *    生产环境推荐指向自己部署的实例（零月费、无第三方按量计费）。
  *
@@ -25,7 +29,34 @@ export interface TranslateEnv {
 
 const FETCH_TIMEOUT_MS = 10_000
 
-/** 默认 Provider：MyMemory 免费接口，GET 一次一条，无需密钥。 */
+/** 默认 Provider：Google 翻译网页版的公开 gtx 接口，GET 一次一条，免密钥。 */
+export class GoogleGtxProvider implements TranslateProvider {
+  readonly id = "google"
+
+  async translate(request: TranslateRequest): Promise<TranslateResult> {
+    const source = request.sourceLang ?? "auto"
+    const url = new URL("https://translate.googleapis.com/translate_a/single")
+    url.searchParams.set("client", "gtx")
+    url.searchParams.set("sl", source)
+    url.searchParams.set("tl", request.targetLang)
+    url.searchParams.set("dt", "t")
+    url.searchParams.set("q", request.text)
+
+    const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+    if (!res.ok) throw new Error(`Google HTTP ${res.status}`)
+
+    // 响应是嵌套数组：[[["译文","原文",null,null,…],…],…,"zh",…]
+    const data = (await res.json()) as unknown
+    const segments = Array.isArray(data) && Array.isArray(data[0]) ? data[0] : []
+    const text = segments
+      .map((seg) => (Array.isArray(seg) && typeof seg[0] === "string" ? seg[0] : ""))
+      .join("")
+    if (!text) throw new Error("Google 未返回译文")
+    return { text, sourceLang: source, targetLang: request.targetLang, provider: this.id }
+  }
+}
+
+/** MyMemory 免费接口，GET 一次一条，无需密钥。 */
 export class MyMemoryProvider implements TranslateProvider {
   readonly id = "mymemory"
 
@@ -84,12 +115,35 @@ export class LibreTranslateProvider implements TranslateProvider {
   }
 }
 
+/**
+ * 主备组合：先用主 Provider，失败（含超时/被拒）自动换备 Provider 重试一次。
+ * 生产环境 Workers 出站 IP 上 Google 可用、MyMemory 匿名额度常年耗尽，
+ * 本地开发则相反（国内网络访问不了 googleapis），组合后两边都能出译文。
+ */
+class FallbackProvider implements TranslateProvider {
+  readonly id = "fallback"
+
+  constructor(
+    private readonly primary: TranslateProvider,
+    private readonly secondary: TranslateProvider,
+  ) {}
+
+  async translate(request: TranslateRequest): Promise<TranslateResult> {
+    try {
+      return await this.primary.translate(request)
+    } catch (error) {
+      console.error(`[translate] ${this.primary.id} 失败，改用 ${this.secondary.id}`, error)
+      return this.secondary.translate(request)
+    }
+  }
+}
+
 /** 按环境变量挑选 Provider：配置了 LibreTranslate 地址就用自托管实例，否则用免密钥默认。 */
 export function createTranslateProvider(env: TranslateEnv): TranslateProvider {
   if (env.LIBRETRANSLATE_URL) {
     return new LibreTranslateProvider(env.LIBRETRANSLATE_URL, env.LIBRETRANSLATE_KEY)
   }
-  return new MyMemoryProvider()
+  return new FallbackProvider(new GoogleGtxProvider(), new MyMemoryProvider())
 }
 
 /** 目标语言与消息原语言相同时不需要翻译。语言码统一小写比较。 */
