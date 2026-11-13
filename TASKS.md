@@ -72,14 +72,18 @@
 
 ## 阶段 7：部署到 Cloudflare 免费层
 
-- [ ] 部署 Worker 与前端
-- [ ] 文档中写清部署步骤和免费层注意点
+- [x] 部署 Worker 与前端
+- [x] 文档中写清部署步骤和免费层注意点
 - [ ] 用正式链接完成一次跨语言对聊检查
 
 完成标准：不依赖本机，用公开 URL 能完成阶段 4 的体验。
 
-进度备注（2026-11-14）：部署侧已就绪——wrangler.toml 配了静态资源（dist 与 Worker
-同源）、`npm run deploy` 可用、步骤和免费层注意点见 `docs/DEPLOY.md`；已用本地
-`wrangler dev`（静态资源 + Worker 同源拓扑）完成跨语言对聊自测。剩余两步被阻塞：
-**本机 `wrangler login` 尚未执行**（需浏览器交互授权），登录后运行 `npm run deploy`
-拿到正式 URL，再按 DEPLOY.md 的验收清单做线上检查，然后才能勾选本阶段。
+进度备注（2026-11-14）：
+
+- 已部署：正式 URL `https://world-chat.world-chat.workers.dev`（版本
+  `f0963269-2673-4484-bb01-d4b799829bde`，`wrangler deployments list` 确认 100%
+  流量已切上，含 11 个静态资源）。步骤与免费层注意点见 `docs/DEPLOY.md`。
+- 线上对聊验收未完成：本机网络无法访问 `*.workers.dev`（已确认 DNS 污染 +
+  SNI 阻断，与部署无关；Cloudflare API 通路正常）。待用可访问 workers.dev 的
+  网络（手机流量或代理）打开正式 URL，按 `docs/DEPLOY.md` 的 5 步验收清单
+  检查通过后，勾选第三项。
