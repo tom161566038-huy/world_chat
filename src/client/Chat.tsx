@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import type { ClientEvent, ServerEvent } from "../shared/protocol"
-import type { ChatMessage, LanguageCode } from "../shared/types"
+import type { ChatMessage, LanguageCode, MessageTranslation } from "../shared/types"
 import { wsUrl } from "./wsUrl"
 
 interface ChatProps {
@@ -12,8 +12,47 @@ interface ChatProps {
 
 type ConnectionState = "connecting" | "open" | "closed"
 
+/** 单条消息：自己发的永远看原文；别人的消息优先显示成自己语言的译文，可展开原文。 */
+function MessageRow({
+  message,
+  mine,
+  translation,
+  myLanguage,
+}: {
+  message: ChatMessage
+  mine: boolean
+  translation?: MessageTranslation
+  myLanguage: LanguageCode
+}) {
+  const [showOriginal, setShowOriginal] = useState(false)
+  const translated =
+    !mine &&
+    translation !== undefined &&
+    translation.targetLang === myLanguage &&
+    translation.text !== message.sourceText
+
+  return (
+    <div className={mine ? "mine" : "others"}>
+      <span className="sender">{message.senderName}</span>
+      {translated ? (
+        <>
+          <p className="bubble">{translation.text}</p>
+          <button className="toggle" onClick={() => setShowOriginal((v) => !v)}>
+            {showOriginal ? "收起原文" : "查看原文"}
+          </button>
+          {showOriginal && <p className="original">{message.sourceText}</p>}
+        </>
+      ) : (
+        <p className="bubble">{message.sourceText}</p>
+      )}
+    </div>
+  )
+}
+
 export default function Chat({ roomId, displayName, language, onLeave }: ChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  /** messageId -> 译文，原文广播后服务端会异步推送过来。 */
+  const [translations, setTranslations] = useState<Record<string, MessageTranslation>>({})
   const [draft, setDraft] = useState("")
   const [status, setStatus] = useState<ConnectionState>("connecting")
   const [myUserId, setMyUserId] = useState<string | null>(null)
@@ -40,10 +79,25 @@ export default function Chat({ roomId, displayName, language, onLeave }: ChatPro
       if (event.type === "joined") {
         setMyUserId(event.userId)
       } else if (event.type === "history") {
-        // 加入时服务端回放的近期消息，刷新页面也能接上
+        // 加入时服务端回放的近期消息，刷新页面也能接上；已缓存的译文一并带回
         setMessages(event.messages.map((item) => item.message))
+        const cached = event.messages
+          .map((item) => item.translation)
+          .filter((t): t is MessageTranslation => t !== undefined)
+        if (cached.length > 0) {
+          setTranslations((prev) => {
+            const next = { ...prev }
+            for (const t of cached) next[t.messageId] = t
+            return next
+          })
+        }
       } else if (event.type === "message") {
         setMessages((prev) => [...prev, event.message])
+      } else if (event.type === "translation") {
+        setTranslations((prev) => ({
+          ...prev,
+          [event.translation.messageId]: event.translation,
+        }))
       }
     }
 
@@ -83,10 +137,13 @@ export default function Chat({ roomId, displayName, language, onLeave }: ChatPro
       <div className="messages" ref={listRef}>
         {messages.length === 0 && <p className="empty">还没有消息，打个招呼吧~</p>}
         {messages.map((msg) => (
-          <div key={msg.id} className={msg.senderId === myUserId ? "mine" : "others"}>
-            <span className="sender">{msg.senderName}</span>
-            <p className="bubble">{msg.sourceText}</p>
-          </div>
+          <MessageRow
+            key={msg.id}
+            message={msg}
+            mine={msg.senderId === myUserId}
+            translation={translations[msg.id]}
+            myLanguage={language}
+          />
         ))}
       </div>
 

@@ -1,9 +1,10 @@
 import { BUILTIN_ROOM_IDS } from "../shared/rooms"
 import { RoomDurableObject } from "./rooms/RoomDurableObject"
+import type { TranslateEnv } from "./translate/provider"
 
 export { RoomDurableObject }
 
-export interface Env {
+export interface Env extends TranslateEnv {
   ROOM: DurableObjectNamespace
 }
 

@@ -1,16 +1,30 @@
 import type { ClientEvent, ServerEvent } from "../../shared/protocol"
-import type { ChatMessage } from "../../shared/types"
+import type { ChatMessage, LanguageCode, MessageTranslation } from "../../shared/types"
+import {
+  createTranslateProvider,
+  sameLanguage,
+  type TranslateEnv,
+} from "../translate/provider"
+import type { TranslateProvider } from "../translate/types"
 
 interface Session {
   userId: string
   senderName: string
+  /** 界面语言，译文按它定向投递。 */
+  language: LanguageCode
 }
 
 /** 每个房间保留的近期消息条数。 */
 const MAX_HISTORY = 100
 
+/** 加入房间时异步补译的历史消息条数上限，避免一次性打爆翻译接口。 */
+const MAX_BACKFILL = 20
+
 /** 存储键前缀，序号左补零保证字典序即时间序。 */
 const MSG_PREFIX = "msg:"
+
+/** 翻译缓存键前缀：`tr:{messageId}:{targetLang}`，同一组合只调用一次接口。 */
+const TR_PREFIX = "tr:"
 
 /**
  * 单房间 Durable Object：管理 WebSocket 连接、广播并持久化近期消息。
@@ -19,16 +33,24 @@ const MSG_PREFIX = "msg:"
  *
  * 存储选型：用 Durable Object 自带的 SQLite 存储（new_sqlite_classes），
  * 不引入 D1。理由：消息天然按房间分区，DO 存储正好一房一份、免额外绑定，
- * 免费层额度足够；以后要做全站消息检索时再考虑 D1。
+ * 免费层额度足够；阶段 4 的翻译缓存也顺带放这里（按消息 + 目标语言），
+ * 以后要做全站消息检索时再考虑 D1。
+ *
+ * 翻译不在广播热路径里：先立刻广播原文，fetch 翻译接口是纯 I/O，
+ * 异步完成后只把译文发给需要该语言的连接。
  */
 export class RoomDurableObject implements DurableObject {
   private sessions = new Map<WebSocket, Session>()
   private state: DurableObjectState
+  private provider: TranslateProvider
   /** 消息序号，惰性从存储恢复，避免 DO 重启后错乱。 */
   private seq: number | null = null
+  /** 进行中的翻译请求去重：同一消息同一目标语言并发时只发一次接口调用。 */
+  private inflight = new Map<string, Promise<MessageTranslation | null>>()
 
-  constructor(state: DurableObjectState, _env: unknown) {
+  constructor(state: DurableObjectState, env: TranslateEnv) {
     this.state = state
+    this.provider = createTranslateProvider(env)
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -71,12 +93,21 @@ export class RoomDurableObject implements DurableObject {
         const session: Session = {
           userId: crypto.randomUUID(),
           senderName: event.displayName.trim().slice(0, 20) || "无名氏",
+          language: event.language,
         }
         this.sessions.set(socket, session)
         this.sendTo(socket, { type: "joined", roomId: event.roomId, userId: session.userId })
-        // 加入后回放近期消息，刷新页面也能看到历史
+        // 加入后回放近期消息，已缓存的译文直接带上；刷新页面也能看到历史
         const messages = await this.recentMessages(MAX_HISTORY)
-        this.sendTo(socket, { type: "history", messages: messages.map((message) => ({ message })) })
+        const items = await Promise.all(
+          messages.map(async (message) => ({
+            message,
+            translation: await this.cachedTranslation(message.id, session.language),
+          })),
+        )
+        this.sendTo(socket, { type: "history", messages: items })
+        // 历史里缺译文的不阻塞加入，异步补齐后单独推送（同语言的消息本来就不用翻）
+        void this.backfillHistory(socket, items, session.language)
         return
       }
       case "send": {
@@ -99,7 +130,9 @@ export class RoomDurableObject implements DurableObject {
         }
         await this.state.storage.put(this.msgKey(seq), message)
         await this.trimOldMessages()
+        // 热路径：先广播原文；译文异步算好后只发给需要的人
         this.broadcast({ type: "message", message })
+        void this.fanOutTranslations(message)
         return
       }
       case "leave": {
@@ -110,6 +143,122 @@ export class RoomDurableObject implements DurableObject {
         // 举报记录属于阶段 6
         this.sendTo(socket, { type: "error", code: "not_implemented", message: "举报功能未开放" })
         return
+      }
+    }
+  }
+
+  /** 把消息翻译成房间里每种「与原语言不同」的界面语言，并定向投递译文。 */
+  private async fanOutTranslations(message: ChatMessage): Promise<void> {
+    const targetLangs = new Set<LanguageCode>()
+    for (const session of this.sessions.values()) {
+      if (!sameLanguage(session.language, message.sourceLang)) {
+        targetLangs.add(session.language.toLowerCase())
+      }
+    }
+    await Promise.all(
+      [...targetLangs].map(async (targetLang) => {
+        const translation = await this.getTranslation(message, targetLang)
+        if (translation) this.sendTranslationToLang(targetLang, translation)
+      }),
+    )
+  }
+
+  /** 给历史消息补译文：只补最近 MAX_BACKFILL 条，串行避免突发大量接口调用。 */
+  private async backfillHistory(
+    socket: WebSocket,
+    items: Array<{ message: ChatMessage; translation?: MessageTranslation }>,
+    targetLang: LanguageCode,
+  ): Promise<void> {
+    const lang = targetLang.toLowerCase()
+    const missing = items
+      .filter((item) => !item.translation && !sameLanguage(item.message.sourceLang, lang))
+      .slice(-MAX_BACKFILL)
+    for (const { message } of missing) {
+      const translation = await this.getTranslation(message, lang)
+      if (!translation) continue
+      try {
+        this.sendTo(socket, { type: "translation", translation })
+      } catch {
+        return // 连接已断开，停止补译
+      }
+    }
+  }
+
+  /**
+   * 取某条消息某目标语言的译文：缓存命中直接返回；
+   * 并发请求同一组合时共享同一个接口调用；失败返回 null（下次可重试）。
+   */
+  private async getTranslation(
+    message: ChatMessage,
+    targetLang: LanguageCode,
+  ): Promise<MessageTranslation | null> {
+    const lang = targetLang.toLowerCase()
+    const key = this.trKey(message.id, lang)
+    const pending = this.inflight.get(key)
+    if (pending) return pending
+
+    const task = this.fetchTranslation(message, lang, key)
+    this.inflight.set(key, task)
+    try {
+      return await task
+    } finally {
+      this.inflight.delete(key)
+    }
+  }
+
+  private async fetchTranslation(
+    message: ChatMessage,
+    targetLang: LanguageCode,
+    key: string,
+  ): Promise<MessageTranslation | null> {
+    const cached = await this.state.storage.get<MessageTranslation>(key)
+    if (cached) return cached
+
+    console.log(`[translate] 缓存未命中，调用接口: ${message.id} -> ${targetLang}`)
+    try {
+      const result = await this.provider.translate({
+        text: message.sourceText,
+        sourceLang: message.sourceLang,
+        targetLang,
+      })
+      const translation: MessageTranslation = {
+        messageId: message.id,
+        targetLang,
+        text: result.text,
+        provider: result.provider,
+        createdAt: Date.now(),
+      }
+      await this.state.storage.put(key, translation)
+      return translation
+    } catch (error) {
+      // 日志不携带消息原文，避免记录超出排查所需的用户内容
+      console.error(`[translate] 翻译失败: ${message.id} -> ${targetLang}`, error)
+      return null
+    }
+  }
+
+  private async cachedTranslation(
+    messageId: string,
+    targetLang: LanguageCode,
+  ): Promise<MessageTranslation | undefined> {
+    return this.state.storage.get<MessageTranslation>(
+      this.trKey(messageId, targetLang.toLowerCase()),
+    )
+  }
+
+  private trKey(messageId: string, targetLang: string): string {
+    return `${TR_PREFIX}${messageId}:${targetLang}`
+  }
+
+  /** 只把译文发给界面语言匹配的连接。 */
+  private sendTranslationToLang(targetLang: string, translation: MessageTranslation): void {
+    const payload = JSON.stringify({ type: "translation", translation } satisfies ServerEvent)
+    for (const [socket, session] of this.sessions) {
+      if (session.language.toLowerCase() !== targetLang) continue
+      try {
+        socket.send(payload)
+      } catch {
+        this.sessions.delete(socket)
       }
     }
   }
@@ -143,7 +292,7 @@ export class RoomDurableObject implements DurableObject {
     return [...entries.values()].reverse()
   }
 
-  /** 超出上限的旧消息直接删掉，控制存储体积。 */
+  /** 超出上限的旧消息直接删掉，连同它的翻译缓存，控制存储体积。 */
   private async trimOldMessages(): Promise<void> {
     const entries = await this.state.storage.list<ChatMessage>({
       prefix: MSG_PREFIX,
@@ -152,7 +301,18 @@ export class RoomDurableObject implements DurableObject {
     })
     const keys = [...entries.keys()]
     if (keys.length <= MAX_HISTORY) return
-    await Promise.all(keys.slice(MAX_HISTORY).map((key) => this.state.storage.delete(key)))
+    await Promise.all(
+      keys.slice(MAX_HISTORY).map(async (key) => {
+        const message = entries.get(key)
+        await this.state.storage.delete(key)
+        if (message) {
+          const translations = await this.state.storage.list<MessageTranslation>({
+            prefix: `${TR_PREFIX}${message.id}:`,
+          })
+          await Promise.all([...translations.keys()].map((k) => this.state.storage.delete(k)))
+        }
+      }),
+    )
   }
 
   private sendTo(socket: WebSocket, event: ServerEvent): void {

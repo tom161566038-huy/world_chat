@@ -10,7 +10,12 @@ export type ClientEvent =
 
 export type ServerEvent =
   | { type: "joined"; roomId: string; userId: string }
-  | { type: "message"; message: ChatMessage; translation?: MessageTranslation }
-  | { type: "history"; messages: Array<{ message: ChatMessage; translation?: MessageTranslation }> }
+  | { type: "message"; message: ChatMessage }
+  | {
+      type: "history"
+      messages: Array<{ message: ChatMessage; translation?: MessageTranslation }>
+    }
+  /** 译文在原文广播后异步送达：只发给需要该目标语言的连接。 */
+  | { type: "translation"; translation: MessageTranslation }
   | { type: "error"; code: string; message: string }
   | { type: "reported"; ok: true }
