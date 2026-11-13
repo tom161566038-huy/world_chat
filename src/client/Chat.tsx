@@ -7,11 +7,12 @@ interface ChatProps {
   roomId: string
   displayName: string
   language: LanguageCode
+  onLeave: () => void
 }
 
 type ConnectionState = "connecting" | "open" | "closed"
 
-export default function Chat({ roomId, displayName, language }: ChatProps) {
+export default function Chat({ roomId, displayName, language, onLeave }: ChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draft, setDraft] = useState("")
   const [status, setStatus] = useState<ConnectionState>("connecting")
@@ -38,6 +39,9 @@ export default function Chat({ roomId, displayName, language }: ChatProps) {
       }
       if (event.type === "joined") {
         setMyUserId(event.userId)
+      } else if (event.type === "history") {
+        // 加入时服务端回放的近期消息，刷新页面也能接上
+        setMessages(event.messages.map((item) => item.message))
       } else if (event.type === "message") {
         setMessages((prev) => [...prev, event.message])
       }
@@ -68,7 +72,9 @@ export default function Chat({ roomId, displayName, language }: ChatProps) {
   return (
     <main className="chat">
       <header className="chat-header">
-        <span># {roomId}</span>
+        <button className="link" onClick={onLeave}>
+          ← 离开
+        </button>
         <span className={`conn conn-${status}`}>
           {status === "open" ? "已连接" : status === "connecting" ? "连接中…" : "已断开"}
         </span>
