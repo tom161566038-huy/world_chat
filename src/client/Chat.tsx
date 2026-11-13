@@ -12,24 +12,38 @@ interface ChatProps {
 
 type ConnectionState = "connecting" | "open" | "closed"
 
+/** 单条消息的举报流程状态：隐藏 → 填理由 → 提交中 → 完成/失败。 */
+type ReportUiState = "hidden" | "form" | "sending" | "done" | "failed"
+
 /** 单条消息：自己发的永远看原文；别人的消息优先显示成自己语言的译文，可展开原文。 */
 function MessageRow({
   message,
   mine,
   translation,
   myLanguage,
+  onReport,
 }: {
   message: ChatMessage
   mine: boolean
   translation?: MessageTranslation
   myLanguage: LanguageCode
+  /** 提交举报，resolve true 表示服务端已记录。 */
+  onReport: (reason: string) => Promise<boolean>
 }) {
   const [showOriginal, setShowOriginal] = useState(false)
+  const [reportUi, setReportUi] = useState<ReportUiState>("hidden")
+  const [reason, setReason] = useState("")
   const translated =
     !mine &&
     translation !== undefined &&
     translation.targetLang === myLanguage &&
     translation.text !== message.sourceText
+
+  async function submitReport() {
+    setReportUi("sending")
+    const ok = await onReport(reason)
+    setReportUi(ok ? "done" : "failed")
+  }
 
   return (
     <div className={mine ? "mine" : "others"}>
@@ -45,6 +59,40 @@ function MessageRow({
       ) : (
         <p className="bubble">{message.sourceText}</p>
       )}
+
+      {!mine && (
+        <span className="report-area">
+          {reportUi === "hidden" && (
+            <button className="toggle" onClick={() => setReportUi("form")}>
+              举报
+            </button>
+          )}
+          {(reportUi === "form" || reportUi === "sending") && (
+            <>
+              <input
+                className="report-reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="举报理由（选填）"
+                maxLength={200}
+                disabled={reportUi === "sending"}
+              />
+              <button className="toggle" disabled={reportUi === "sending"} onClick={submitReport}>
+                {reportUi === "sending" ? "提交中…" : "提交"}
+              </button>
+              <button
+                className="toggle"
+                disabled={reportUi === "sending"}
+                onClick={() => setReportUi("hidden")}
+              >
+                取消
+              </button>
+            </>
+          )}
+          {reportUi === "done" && <span className="report-done">已收到举报，感谢反馈</span>}
+          {reportUi === "failed" && <span className="report-failed">提交失败，请稍后重试</span>}
+        </span>
+      )}
     </div>
   )
 }
@@ -56,6 +104,8 @@ export default function Chat({ roomId, displayName, language, onLeave }: ChatPro
   const [draft, setDraft] = useState("")
   const [status, setStatus] = useState<ConnectionState>("connecting")
   const [myUserId, setMyUserId] = useState<string | null>(null)
+  /** 服务端 error 事件的提示（限频/超长/被过滤等），短暂展示后自动消失。 */
+  const [serverError, setServerError] = useState<string | null>(null)
   const socketRef = useRef<WebSocket | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
 
@@ -98,6 +148,8 @@ export default function Chat({ roomId, displayName, language, onLeave }: ChatPro
           ...prev,
           [event.translation.messageId]: event.translation,
         }))
+      } else if (event.type === "error") {
+        setServerError(event.message)
       }
     }
 
@@ -115,12 +167,51 @@ export default function Chat({ roomId, displayName, language, onLeave }: ChatPro
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
   }, [messages])
 
+  // 服务端错误提示 4 秒后自动消失
+  useEffect(() => {
+    if (!serverError) return
+    const timer = setTimeout(() => setServerError(null), 4000)
+    return () => clearTimeout(timer)
+  }, [serverError])
+
   function send() {
     const text = draft.trim()
     if (!text || status !== "open") return
     const event: ClientEvent = { type: "send", roomId, text, sourceLang: language }
     socketRef.current?.send(JSON.stringify(event))
     setDraft("")
+  }
+
+  /** 提交举报：等 reported / error 回执或超时，告诉消息行成功与否。 */
+  function reportMessage(messageId: string, reason: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const socket = socketRef.current
+      if (!socket || status !== "open") {
+        resolve(false)
+        return
+      }
+      let settled = false
+      const finish = (ok: boolean) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        socket.removeEventListener("message", onReply)
+        resolve(ok)
+      }
+      const onReply = (e: MessageEvent) => {
+        try {
+          const ev = JSON.parse(String(e.data)) as ServerEvent
+          if (ev.type === "reported") finish(true)
+          else if (ev.type === "error" && ev.code === "bad_report") finish(false)
+        } catch {
+          // 忽略坏帧
+        }
+      }
+      const timer = setTimeout(() => finish(false), 5000)
+      socket.addEventListener("message", onReply)
+      const event: ClientEvent = { type: "report", messageId, reason }
+      socket.send(JSON.stringify(event))
+    })
   }
 
   return (
@@ -149,9 +240,16 @@ export default function Chat({ roomId, displayName, language, onLeave }: ChatPro
             mine={msg.senderId === myUserId}
             translation={translations[msg.id]}
             myLanguage={language}
+            onReport={(reason) => reportMessage(msg.id, reason)}
           />
         ))}
       </div>
+
+      {serverError && (
+        <div className="error-toast" role="alert">
+          {serverError}
+        </div>
+      )}
 
       <form
         className="composer"

@@ -1,5 +1,6 @@
 import type { ClientEvent, ServerEvent } from "../../shared/protocol"
 import type { ChatMessage, LanguageCode, MessageTranslation } from "../../shared/types"
+import { findSpam } from "./moderation"
 import {
   createTranslateProvider,
   sameLanguage,
@@ -12,6 +13,8 @@ interface Session {
   senderName: string
   /** 界面语言，译文按它定向投递。 */
   language: LanguageCode
+  /** 最近成功发送的时间戳（滑动窗口），用于发送频率限制。 */
+  sentAt: number[]
 }
 
 /** 每个房间保留的近期消息条数。 */
@@ -19,6 +22,45 @@ const MAX_HISTORY = 100
 
 /** 加入房间时异步补译的历史消息条数上限，避免一次性打爆翻译接口。 */
 const MAX_BACKFILL = 20
+
+/**
+ * 发送频率限制（阶段 6）：每个用户滑动窗口 RATE_WINDOW_MS（10 秒）内
+ * 最多成功发送 RATE_MAX（5）条，折合平均 0.5 条/秒，允许短促连发。
+ * 正常聊天远低于这个频率；被拒绝的消息不入库、不广播、不翻译，
+ * 只回一个 error 事件，所以刷屏耗不了房间和翻译接口的资源。
+ * 窗口放在内存里：DO 重启会清零，可接受（重启罕见，且只是多放行 5 条）。
+ */
+const RATE_MAX = 5
+const RATE_WINDOW_MS = 10_000
+
+/** 消息长度上限，与前端输入框 maxLength 一致；超过直接拒绝而不是悄悄截断。 */
+const MAX_TEXT_LENGTH = 500
+
+/** 举报理由长度上限。 */
+const MAX_REASON_LENGTH = 200
+
+/** 每个房间保留的举报记录条数上限，防止存储被无限制写爆。 */
+const MAX_REPORTS = 500
+
+/** 举报存储键前缀：`report:{时间戳左补零}:{记录id}`，字典序即时间序。 */
+const REPORT_PREFIX = "report:"
+
+/** 举报记录。管理员侧查看方式见 saveReport 的注释。 */
+export interface ReportRecord {
+  id: string
+  /** 房间号（DO 以房间号命名，冗余存一份便于脱离 DO 上下文排查）。 */
+  roomId: string
+  /** 被举报的消息 id（举报用户时为空）。 */
+  messageId?: string
+  /** 被举报的用户 id（举报消息时如有则带上）。 */
+  reportedUserId?: string
+  /** 举报理由，已限长。 */
+  reason: string
+  /** 举报人信息，供管理员跟进。 */
+  reporterId: string
+  reporterName: string
+  createdAt: number
+}
 
 /** 存储键前缀，序号左补零保证字典序即时间序。 */
 const MSG_PREFIX = "msg:"
@@ -94,6 +136,7 @@ export class RoomDurableObject implements DurableObject {
           userId: crypto.randomUUID(),
           senderName: event.displayName.trim().slice(0, 20) || "无名氏",
           language: event.language,
+          sentAt: [],
         }
         this.sessions.set(socket, session)
         this.sendTo(socket, { type: "joined", roomId: event.roomId, userId: session.userId })
@@ -118,6 +161,37 @@ export class RoomDurableObject implements DurableObject {
         }
         const text = event.text.trim()
         if (!text) return
+
+        // 阶段 6：长度限制（原长度先看，超长直接拒绝，不悄悄截断）
+        if (event.text.length > MAX_TEXT_LENGTH) {
+          this.sendTo(socket, {
+            type: "error",
+            code: "too_long",
+            message: `消息超过 ${MAX_TEXT_LENGTH} 字，请删减后再发`,
+          })
+          return
+        }
+
+        // 阶段 6：基础文本过滤（重复刷屏 / 链接轰炸 / 垃圾关键词）
+        const spamReason = findSpam(text)
+        if (spamReason) {
+          this.sendTo(socket, { type: "error", code: "filtered", message: spamReason })
+          return
+        }
+
+        // 阶段 6：发送频率限制，超频拒绝（不入库、不广播）
+        const now = Date.now()
+        session.sentAt = session.sentAt.filter((t) => now - t < RATE_WINDOW_MS)
+        if (session.sentAt.length >= RATE_MAX) {
+          this.sendTo(socket, {
+            type: "error",
+            code: "rate_limited",
+            message: "发得太快啦，歇一歇再发",
+          })
+          return
+        }
+        session.sentAt.push(now)
+
         const seq = await this.nextSeq()
         const message: ChatMessage = {
           id: crypto.randomUUID(),
@@ -125,7 +199,7 @@ export class RoomDurableObject implements DurableObject {
           senderId: session.userId,
           senderName: session.senderName,
           sourceLang: event.sourceLang,
-          sourceText: text.slice(0, 500),
+          sourceText: text,
           createdAt: Date.now(),
         }
         await this.state.storage.put(this.msgKey(seq), message)
@@ -140,8 +214,34 @@ export class RoomDurableObject implements DurableObject {
         return
       }
       case "report": {
-        // 举报记录属于阶段 6
-        this.sendTo(socket, { type: "error", code: "not_implemented", message: "举报功能未开放" })
+        // 阶段 6：举报真正落盘。未加入房间不允许举报。
+        const session = this.sessions.get(socket)
+        if (!session) {
+          this.sendTo(socket, { type: "error", code: "not_joined", message: "请先加入房间" })
+          return
+        }
+        const messageId = event.messageId?.trim() || undefined
+        const reportedUserId = event.userId?.trim() || undefined
+        if (!messageId && !reportedUserId) {
+          this.sendTo(socket, {
+            type: "error",
+            code: "bad_report",
+            message: "要举报的消息或用户不能都为空",
+          })
+          return
+        }
+        const record: ReportRecord = {
+          id: crypto.randomUUID(),
+          roomId: this.state.id.name ?? this.state.id.toString(),
+          messageId,
+          reportedUserId,
+          reason: event.reason.trim().slice(0, MAX_REASON_LENGTH),
+          reporterId: session.userId,
+          reporterName: session.senderName,
+          createdAt: Date.now(),
+        }
+        await this.saveReport(record)
+        this.sendTo(socket, { type: "reported", ok: true })
         return
       }
     }
@@ -248,6 +348,33 @@ export class RoomDurableObject implements DurableObject {
 
   private trKey(messageId: string, targetLang: string): string {
     return `${TR_PREFIX}${messageId}:${targetLang}`
+  }
+
+  /**
+   * 举报落盘，键为 `report:{时间戳左补零}:{记录id}`，按前缀 list 即按时间序读出。
+   *
+   * 怎么查（阶段 6 先不做管理界面）：
+   * - 本地：wrangler dev 的 DO 数据在 .wrangler/state/ 下的 sqlite 文件里，
+   *   打开对应库按 report: 前缀查 storage 表；
+   * - 以后要做管理端时，给这个 DO 加一个仅管理员可调的 HTTP 路由，
+   *   内部 storage.list({ prefix: "report:" }) 返回即可。
+   * 超出 MAX_REPORTS 的旧记录滚动删除，控制存储体积。
+   */
+  private async saveReport(record: ReportRecord): Promise<void> {
+    const key = `${REPORT_PREFIX}${String(record.createdAt).padStart(16, "0")}:${record.id}`
+    await this.state.storage.put(key, record)
+    await this.trimReports()
+  }
+
+  private async trimReports(): Promise<void> {
+    const entries = await this.state.storage.list<ReportRecord>({
+      prefix: REPORT_PREFIX,
+      reverse: true,
+      limit: MAX_REPORTS + 1,
+    })
+    const keys = [...entries.keys()]
+    if (keys.length <= MAX_REPORTS) return
+    await Promise.all(keys.slice(MAX_REPORTS).map((key) => this.state.storage.delete(key)))
   }
 
   /** 只把译文发给界面语言匹配的连接。 */

@@ -148,6 +148,51 @@ body {
   text-align: center;
 }
 
+/* 服务端错误提示（限频/超长/被过滤等），短暂展示后自动消失 */
+.error-toast {
+  padding: 8px 16px;
+  background: #fff4e5;
+  color: #8a5300;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* 举报入口与理由输入 */
+.report-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 0 4px;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.report-reason {
+  padding: 4px 8px;
+  font-size: 13px;
+  border: 1px solid #c9cedb;
+  border-radius: 6px;
+  min-width: 0;
+  flex: 1;
+  max-width: 220px;
+  background: #fff;
+}
+
+.report-note {
+  font-size: 12px;
+  color: #9aa0b0;
+}
+
+.report-done {
+  font-size: 12px;
+  color: #2e9e5b;
+}
+
+.report-failed {
+  font-size: 12px;
+  color: #b3261e;
+}
+
 .conn {
   font-size: 12px;
   color: #9aa0b0;
