@@ -3,6 +3,15 @@ name = "world-chat"
 main = "src/worker/index.ts"
 compatibility_date = "2026-11-10"
 
+# 前端静态资源（阶段 7）：Vite 构建产物和 Worker 部署到同一来源，
+# 页面与 /ws WebSocket 同源，前端 wsUrl 才能直接走同源 wss。
+# 请求先匹配静态文件（/、/assets/*、/manifest、/sw.js、图标…），
+# 匹配不到的（/ws）落到下面的 Worker 脚本。静态资源免费、不占请求数额度。
+# 注意：配置了 assets 后，本地 `npm run dev:worker` 需要先 `npm run build` 生成
+# dist（日常前端开发继续用 `npm run dev` 的 vite 流程，不受影响）。
+[assets]
+directory = "./dist"
+
 # 免费层要求 Durable Object 使用 SQLite 存储
 [durable_objects]
 bindings = [{ name = "ROOM", class_name = "RoomDurableObject" }]

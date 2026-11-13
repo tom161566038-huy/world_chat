@@ -3,7 +3,9 @@
 // - 静态资源（/assets/、图标等带哈希/不变的文件）：缓存优先 + 后台更新
 // - 不缓存 WebSocket 和跨域请求；离线发消息/翻译不在本阶段范围
 const CACHE = "worldchat-shell-v1"
-const SHELL = ["/", "/offline.html"]
+// Workers 静态资源会把 /offline.html 307 到 /offline（pretty URL），
+// 这里直接用 /offline，避免预缓存到重定向响应
+const SHELL = ["/", "/offline"]
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -42,7 +44,7 @@ self.addEventListener("fetch", (event) => {
           caches
             .match(request)
             .then((hit) => hit ?? caches.match("/"))
-            .then((hit) => hit ?? caches.match("/offline.html")),
+            .then((hit) => hit ?? caches.match("/offline")),
         ),
     )
     return

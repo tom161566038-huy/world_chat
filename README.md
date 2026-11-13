@@ -11,6 +11,7 @@
 - [PLAN.md](./PLAN.md) — 产品与技术总纲
 - [TASKS.md](./TASKS.md) — 分阶段任务，请严格按顺序做
 - [CLAUDE.md](./CLAUDE.md) — 给 Claude Code 的工作约定
+- [docs/DEPLOY.md](./docs/DEPLOY.md) — 部署到 Cloudflare 免费层的步骤与注意点
 
 ## 第一版范围
 
