@@ -134,6 +134,12 @@ export default function Chat({ roomId, displayName, language, onLeave }: ChatPro
         </span>
       </header>
 
+      {status === "closed" && (
+        <div className="offline-banner" role="alert">
+          网络断开，消息暂时发不出去；恢复网络后请刷新或重新进入房间。
+        </div>
+      )}
+
       <div className="messages" ref={listRef}>
         {messages.length === 0 && <p className="empty">还没有消息，打个招呼吧~</p>}
         {messages.map((msg) => (

@@ -11,6 +11,8 @@
 body {
   margin: 0;
   min-height: 100vh;
+  /* 小屏上禁止横向溢出（长译文/长 URL 也不会把页面撑宽） */
+  overflow-x: hidden;
 }
 
 .setup {
@@ -121,6 +123,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* 手机浏览器地址栏收起/展开时 100vh 会跳，dvh 更稳；PWA 全屏下配合安全区留白 */
+  height: 100dvh;
   max-width: 640px;
   margin: 0 auto;
 }
@@ -130,8 +134,18 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
+  padding-top: calc(12px + env(safe-area-inset-top));
   border-bottom: 1px solid #e3e6ef;
   background: #fff;
+}
+
+/* 断线提示横幅 */
+.offline-banner {
+  padding: 8px 16px;
+  background: #fdeceb;
+  color: #b3261e;
+  font-size: 13px;
+  text-align: center;
 }
 
 .conn {
@@ -169,7 +183,7 @@ body {
   border-radius: 12px;
   background: #fff;
   border: 1px solid #e3e6ef;
-  max-width: 420px;
+  max-width: min(420px, 100%);
   word-break: break-word;
 }
 
@@ -210,7 +224,7 @@ body {
   margin: 2px 0 0 4px;
   font-size: 12px;
   color: #9aa0b0;
-  max-width: 420px;
+  max-width: min(420px, 100%);
   word-break: break-word;
 }
 
@@ -218,6 +232,7 @@ body {
   display: flex;
   gap: 8px;
   padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
   border-top: 1px solid #e3e6ef;
   background: #fff;
 }

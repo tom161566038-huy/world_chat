@@ -2,8 +2,21 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover：PWA 全屏模式下内容延伸到刘海/圆角底下，配合 CSS 安全区留白 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>WorldChat</title>
+
+    <!-- PWA：Android/桌面通过 manifest 安装 -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#4a6cf7" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- PWA：iOS 添加到主屏（Safari 不读 manifest 的 display/icon，要单独喂） -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="WorldChat" />
   </head>
   <body>
     <div id="root"></div>
