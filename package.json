@@ -6,10 +6,10 @@
   "description": "全球实时翻译聊天室（PWA）",
   "scripts": {
     "dev": "vite",
-    "dev:worker": "echo \"阶段 2 完成前：请先按 TASKS.md 配置 wrangler\"",
-    "build": "tsc --noEmit && vite build",
+    "dev:worker": "wrangler dev",
+    "build": "npm run typecheck && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.worker.json",
     "deploy": "echo \"尚未配置部署\""
   },
   "dependencies": {
@@ -17,10 +17,12 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261113.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.7.2",
-    "vite": "^6.0.3"
+    "vite": "^6.0.3",
+    "wrangler": "^4.161.0"
   }
 }

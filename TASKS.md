@@ -16,12 +16,12 @@
 
 完成标准：浏览器能打开页面，代码能通过 TypeScript 检查。
 
-## 阶段 2：Worker 与单房间文字聊天（先不做翻译）
+## 阶段 2：Worker 与单房间文字聊天（先不做翻译）（已完成）
 
-- [ ] 补齐 `wrangler.toml`，本地 `wrangler dev` 可运行
-- [ ] Durable Object 管理一个房间的连接和消息广播
-- [ ] 前端连上 WebSocket，能发、能收、消息有顺序
-- [ ] 消息结构使用 `src/shared` 里的类型
+- [x] 补齐 `wrangler.toml`，本地 `wrangler dev` 可运行
+- [x] Durable Object 管理一个房间的连接和消息广播
+- [x] 前端连上 WebSocket，能发、能收、消息有顺序
+- [x] 消息结构使用 `src/shared` 里的类型
 
 完成标准：两个浏览器窗口进入同一房间，互相能看到对方刚发的原文消息。
 

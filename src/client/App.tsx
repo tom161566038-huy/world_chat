@@ -1,5 +1,6 @@
 import { useState } from "react"
 import type { LanguageCode } from "../shared/types"
+import Chat from "./Chat"
 
 /** 第一版支持的界面语言，先列一小批，后续按需扩展。 */
 const LANGUAGES: Array<{ code: LanguageCode; label: string }> = [
@@ -10,12 +11,19 @@ const LANGUAGES: Array<{ code: LanguageCode; label: string }> = [
   { code: "fr", label: "Français" },
 ]
 
-/** 阶段 3 才有真实房间，这里先放占位话题。 */
-const ROOM_PLACEHOLDERS = ["旅行", "美食", "学语言"] as const
+/** 阶段 2 只有单一房间；阶段 3 再做房间列表。 */
+const LOBBY_ROOM_ID = "lobby"
 
 export default function App() {
   const [displayName, setDisplayName] = useState("")
   const [language, setLanguage] = useState<LanguageCode>("zh")
+  const [entered, setEntered] = useState(false)
+
+  if (entered) {
+    return (
+      <Chat roomId={LOBBY_ROOM_ID} displayName={displayName} language={language} />
+    )
+  }
 
   return (
     <main className="setup">
@@ -26,6 +34,7 @@ export default function App() {
         className="entry"
         onSubmit={(e) => {
           e.preventDefault()
+          if (displayName.trim()) setEntered(true)
         }}
       >
         <label>
@@ -49,18 +58,9 @@ export default function App() {
             ))}
           </select>
         </label>
-      </form>
 
-      <section className="rooms">
-        <h2>房间（即将开放）</h2>
-        <ul>
-          {ROOM_PLACEHOLDERS.map((topic) => (
-            <li key={topic} className="room-placeholder">
-              # {topic}
-            </li>
-          ))}
-        </ul>
-      </section>
+        <button type="submit">进入大厅</button>
+      </form>
     </main>
   )
 }

@@ -1,12 +1,18 @@
-# 阶段 2 再补全绑定。保持免费层可用的配置，不要默认打开付费功能。
+# 保持免费层可用的配置，不要默认打开付费功能。
 name = "world-chat"
 main = "src/worker/index.ts"
-compatibility_date = "2026-11-14"
+compatibility_date = "2026-11-10"
 
+# 免费层要求 Durable Object 使用 SQLite 存储
+[durable_objects]
+bindings = [{ name = "ROOM", class_name = "RoomDurableObject" }]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoomDurableObject"]
+
+# 阶段 3/4 再按需打开：
 # [[d1_databases]]
 # binding = "DB"
 # database_name = "world-chat"
 # database_id = ""
-
-# [durable_objects]
-# bindings = [{ name = "ROOM", class_name = "RoomDurableObject" }]
