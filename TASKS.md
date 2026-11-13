@@ -7,12 +7,12 @@
 - [x] 总纲、任务、Claude 约定和目录骨架入库
 - [x] GitHub 远程：`git@github.com:tom161566038-huy/world_chat.git`
 
-## 阶段 1：前端脚手架能跑起来
+## 阶段 1：前端脚手架能跑起来（已完成）
 
-- [ ] 用 Vite + React + TypeScript 初始化前端（入口在 `src/client`）
-- [ ] 配好 `package.json`、`tsconfig`、`vite.config.ts`
-- [ ] 一个极简页面：显示名称、语言、房间占位
-- [ ] `npm run dev` 可在本地打开
+- [x] 用 Vite + React + TypeScript 初始化前端（入口在 `src/client`）
+- [x] 配好 `package.json`、`tsconfig`、`vite.config.ts`
+- [x] 一个极简页面：显示名称、语言、房间占位
+- [x] `npm run dev` 可在本地打开
 
 完成标准：浏览器能打开页面，代码能通过 TypeScript 检查。
 
