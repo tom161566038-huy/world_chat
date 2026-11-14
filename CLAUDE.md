@@ -12,7 +12,11 @@
 ## 硬约束
 
 - 第一版只做文字聊天 PWA，禁止加入语音、视频、支付、原生 App。
-- 生产翻译禁止默认走大模型（包括 GLM）。GLM 只用于本机写代码。
+- 生产翻译引擎默认链条在 `src/worker/translate/provider.ts`。大模型做翻译有
+  有限例外（产品负责人 2026-11-14 批准）：仅允许 Cloudflare Workers AI
+  免费层的多语言指令模型（当前 `@cf/zai-org/glm-4.7-flash`；需要 Workers Paid
+  的 glm-5.x 不用）；外部付费翻译 / 大模型 API（DeepL 付费、OpenAI、智谱官方
+  API 等）一律禁止。GLM 编码助手只用于本机写代码，密钥不得进生产。
 - 不得把 API 密钥写入仓库。使用 `.dev.vars` / 环境变量，并更新 `.gitignore`。
 - 不得接入没有预算上限说明的付费翻译 API。
 - 每条译文必须能查看原文。

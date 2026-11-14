@@ -112,3 +112,13 @@
   provider id + HTTP 状态码打进日志。本地回归：Google 出口超时、AI 远端
   代理超时后自动落到 MyMemory，双语译文均正常到达；`wrangler dev --remote`
   隧道在国内网络连不通，生产路径待可访问网络按 DEPLOY.md 清单复测。
+- 译文自然度（版本 `828d80f8-24c2-4c79-ad21-fd8fd4e08e51`）：m2m100 译文生硬
+  （「夜间验收你好」→ "Welcome to you at night"），产品负责人批准有限例外后，
+  Workers AI 主模型换成 `@cf/zai-org/glm-4.7-flash`（Free 计划免费额度内、
+  不绑卡；glm-5.x 需 Workers Paid 不用），链条变为 clients5 → glm-4.7-flash
+  → m2m100 → MyMemory。glm 一棒用 chat messages 强约束「只输出译文」、
+  temperature 0、max_tokens 按原文长度收紧、尝试关 thinking，响应解析兼容
+  choices/message/response 形状并剥引号/代码块、拒答套话当失败。外部付费
+  翻译/大模型 API 仍然禁止。本地用 mock AI 验证了四种响应形状、拒答识别、
+  参数与整条链条（google 超时后落到 glm）；本机 wrangler dev 因 AI 远端
+  代理认证刷新失败起不来，真实 glm 译文质量待可访问网络按 DEPLOY.md 清单复测。

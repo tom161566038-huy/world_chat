@@ -2,7 +2,7 @@ import type { LanguageCode } from "../../shared/types"
 import type { TranslateProvider, TranslateRequest, TranslateResult } from "./types"
 
 /**
- * Provider 选型（阶段 4，阶段 7 线上两次修复后调整）：
+ * Provider 选型（阶段 4，阶段 7 线上修复后 + 译文自然度调整）：
  *
  * 1. 默认链条（依次尝试，前一个失败自动换下一个，每个 provider 的失败都带
  *    provider id + HTTP 状态码打进日志）：
@@ -10,20 +10,22 @@ import type { TranslateProvider, TranslateRequest, TranslateResult } from "./typ
  *       免密钥、免账单。translate.googleapis.com 的 gtx 入口在共享/云出站 IP
  *       上普遍 429（返回 HTML），已弃用；clients5 入口是词典扩展用的通道，
  *       对数据中心出站更宽松。
- *    b. WorkersAiTranslateProvider：Cloudflare Workers AI 的
- *       @cf/meta/m2m100-1.2b，走 AI binding（wrangler.toml 里 [ai] binding = "AI"），
- *       Workers Free 每天 10,000 Neurons 免费额度，短消息够用，不需要付费计划、
- *       不需要密钥。m2m100 不支持 auto 检测，源语言缺省按 en。
- *    c. MyMemoryProvider：免密钥，但匿名额度按出站 IP 计算，Workers 共享出口
- *       IP 额度常年耗尽（429 / MYMEMORY WARNING），只作链条末端兜底；
- *       本地开发若 AI binding 不可用也能落到它。
+ *    b. WorkersAiChatProvider：Workers AI 的 @cf/zai-org/glm-4.7-flash，
+ *       走 AI binding（wrangler.toml [ai] binding = "AI"），Free 计划每天
+ *       10,000 Neurons 免费额度、不绑卡。m2m100 的译文生硬（「夜间验收你好」
+ *       会翻成 "Welcome to you at night"），产品负责人已批准有限例外：
+ *       仅允许 Workers AI 免费层的多语言指令模型做默认翻译引擎；外部付费
+ *       翻译/大模型 API（DeepL 付费、OpenAI、智谱官方 API 等）仍然禁止，
+ *       glm-5.x 系列需要 Workers Paid，也不用。
+ *    c. WorkersAiTranslateProvider：@cf/meta/m2m100-1.2b 专用翻译模型，
+ *       自然度一般但便宜稳定，作 glm 失败时的下一棒。
+ *    d. MyMemoryProvider：免密钥，但匿名额度按出站 IP 计算，Workers 共享出口
+ *       IP 额度常年耗尽（429 / MYMEMORY WARNING），只作链条末端兜底。
  * 2. LibreTranslateProvider：开源、可自托管。设置 LIBRETRANSLATE_URL 即启用，
  *    生产环境推荐指向自己部署的实例（零月费、无第三方按量计费）。
  *
  * 以后要接需要密钥的商业 Provider（如 Azure Translator 免费档）时，
  * 在这里加一个类并按环境变量切换即可；密钥只放 .dev.vars / Cloudflare 密钥。
- * 按总纲要求，禁止把大模型（包括 GLM）设为默认生产翻译引擎。
- * （m2m100 是专用翻译模型，不是通用大模型。）
  */
 
 /**
@@ -45,6 +47,28 @@ export interface TranslateEnv {
 }
 
 const FETCH_TIMEOUT_MS = 10_000
+
+/** glm-4.7-flash 是推理型模型，即使关掉 thinking 也比专用翻译模型慢，超时单独放宽。 */
+const CHAT_TIMEOUT_MS = 15_000
+
+/** 提示词里用英文语言名比裸语言码更稳；没映射到的语言直接用码。 */
+const LANGUAGE_NAMES: Record<string, string> = {
+  zh: "Simplified Chinese",
+  "zh-tw": "Traditional Chinese",
+  en: "English",
+  ja: "Japanese",
+  ko: "Korean",
+  es: "Spanish",
+  fr: "French",
+  de: "German",
+  ru: "Russian",
+  pt: "Portuguese",
+  ar: "Arabic",
+}
+
+function languageName(code: string): string {
+  return LANGUAGE_NAMES[code.toLowerCase()] ?? code
+}
 
 /** 模拟 Chrome 浏览器的 UA，clients5 的 dict-chrome-ex 入口期望浏览器类请求。 */
 const BROWSER_UA =
@@ -82,7 +106,53 @@ export class GoogleClients5Provider implements TranslateProvider {
   }
 }
 
-/** Workers AI 的 m2m100 翻译模型，走 AI binding，免密钥、免费额度内。 */
+/**
+ * Workers AI 的 glm-4.7-flash，链条第二棒：聊天指令模型，译文比 m2m100 自然得多。
+ * 提示词强约束「只输出译文」；temperature 0 求稳定；max_tokens 按原文长度收紧，
+ * 省免费额度也防止模型跑题长篇大论。模型带 thinking，尝试用 chat_template_kwargs
+ * 关掉（后端不认这个键也不影响调用，只是慢一点，有 15s 竞速超时兜底）。
+ */
+export class WorkersAiChatProvider implements TranslateProvider {
+  readonly id = "workers-ai-glm-4.7-flash"
+
+  constructor(private readonly ai: AiLike) {}
+
+  async translate(request: TranslateRequest): Promise<TranslateResult> {
+    // glm-4.7-flash 没有 auto 检测；聊天源语言缺省按 en（应用内可选项就几种）
+    const source = request.sourceLang && request.sourceLang !== "auto" ? request.sourceLang : "en"
+    const system = [
+      "You are a translation engine for a casual multilingual chat room.",
+      `Translate the user's message from ${languageName(source)} into ${languageName(request.targetLang)}.`,
+      "Keep the tone natural and conversational, the way a native speaker would text a friend.",
+      "Output ONLY the translation itself. No quotes, no explanations, no notes, no preamble.",
+    ].join(" ")
+    let output: unknown
+    try {
+      // AI binding 不吃 AbortSignal，沿用竞速超时，防止远端代理悬死整条链
+      output = await Promise.race([
+        this.ai.run("@cf/zai-org/glm-4.7-flash", {
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: request.text },
+          ],
+          temperature: 0,
+          max_tokens: Math.min(600, request.text.length * 3 + 64),
+          chat_template_kwargs: { enable_thinking: false },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("WorkersAiChat 超时")), CHAT_TIMEOUT_MS),
+        ),
+      ])
+    } catch (error) {
+      throw new Error(`WorkersAiChat 调用失败: ${error instanceof Error ? error.message : error}`)
+    }
+    const text = normalizeChatText(extractChatText(output))
+    if (!text) throw new Error("WorkersAiChat 未返回有效译文")
+    return { text, sourceLang: source, targetLang: request.targetLang, provider: this.id }
+  }
+}
+
+/** Workers AI 的 m2m100 翻译模型，走 AI binding，免密钥、免费额度内；glm 失败后的兜底。 */
 export class WorkersAiTranslateProvider implements TranslateProvider {
   readonly id = "workers-ai-m2m100"
 
@@ -126,6 +196,43 @@ function extractClients5Text(data: unknown): string {
       .join("")
   }
   return ""
+}
+
+/**
+ * 聊天模型响应解析：优先 OpenAI 兼容的 choices[0].message.content，
+ * 再退到 Workers AI 历史上的 response / result / translated_text 等键。
+ */
+function extractChatText(output: unknown): string {
+  if (typeof output === "string") return output.trim()
+  if (!output || typeof output !== "object") return ""
+  const record = output as Record<string, unknown>
+  const choices = record.choices
+  if (Array.isArray(choices) && choices.length > 0) {
+    const first = choices[0] as Record<string, unknown>
+    const message = first?.message as Record<string, unknown> | undefined
+    if (message && typeof message.content === "string" && message.content.trim()) {
+      return message.content.trim()
+    }
+  }
+  for (const key of ["response", "result", "translated_text", "translatedText"]) {
+    const value = record[key]
+    if (typeof value === "string" && value.trim()) return value.trim()
+  }
+  return ""
+}
+
+/**
+ * 聊天模型偶尔不听话：给译文包引号、加「译文：」前缀、套 markdown 代码块，
+ * 都剥掉；出现明显的拒答/解释性套话时返回空串，让链条走下一棒。
+ */
+function normalizeChatText(text: string): string {
+  let out = text.trim()
+  out = out.replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/, "")
+  out = out.replace(/^(?:translation|译文|翻譯)\s*[:：]\s*/i, "")
+  out = out.replace(/^[「『"'“]+/u, "").replace(/[」』"'”]+$/u, "")
+  out = out.trim()
+  if (/^(i'?m sorry|as an ai|i cannot|i can't|抱歉|对不起|我无法|无法翻译)/i.test(out)) return ""
+  return out
 }
 
 /** Workers AI 响应解析：兼容 translated_text / translatedText / 具名 response 等形状。 */
@@ -243,7 +350,10 @@ export function createTranslateProvider(env: TranslateEnv): TranslateProvider {
     return new LibreTranslateProvider(env.LIBRETRANSLATE_URL, env.LIBRETRANSLATE_KEY)
   }
   const chain: TranslateProvider[] = [new GoogleClients5Provider()]
-  if (env.AI) chain.push(new WorkersAiTranslateProvider(env.AI))
+  if (env.AI) {
+    chain.push(new WorkersAiChatProvider(env.AI))
+    chain.push(new WorkersAiTranslateProvider(env.AI))
+  }
   chain.push(new MyMemoryProvider())
   return new FallbackChainProvider(chain)
 }
