@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { ClientEvent, ServerEvent } from "../shared/protocol"
 import type { ChatMessage, LanguageCode, MessageTranslation, Room } from "../shared/types"
+import { getVisitorId } from "./api"
 import { roomMeta, sameLanguage, serverErrorMessage, t } from "./i18n"
 import { roomLink } from "./router"
 import { copyText } from "./share"
@@ -19,7 +20,10 @@ type ConnectionState = "connecting" | "open" | "closed"
 const RETRY_DELAY_MS = 3000
 
 /** 单条消息的举报流程状态：隐藏 → 填理由 → 提交中 → 完成/失败。 */
-type ReportUiState = "hidden" | "form" | "sending" | "done" | "failed"
+type ReportUiState = "hidden" | "form" | "sending" | "done" | "failed" | "rate_limited"
+
+/** 举报提交结果：成功 / 被服务端拒绝 / 举报太频繁 / 连接问题或超时。 */
+type ReportResult = "ok" | "bad" | "rate_limited" | "network"
 
 /** 单条消息：自己发的永远看原文；别人的消息优先显示成自己语言的译文，可展开原文。 */
 function MessageRow({
@@ -36,8 +40,8 @@ function MessageRow({
   /** 服务端明确通知过「这条译不出来」，UI 给出说明而不是默默显示原文。 */
   translationFailed: boolean
   myLanguage: LanguageCode
-  /** 提交举报，resolve true 表示服务端已记录。 */
-  onReport: (reason: string) => Promise<boolean>
+  /** 提交举报，返回结果状态；失败时表单保留已填的理由便于重试。 */
+  onReport: (reason: string) => Promise<ReportResult>
 }) {
   const [showOriginal, setShowOriginal] = useState(false)
   const [reportUi, setReportUi] = useState<ReportUiState>("hidden")
@@ -52,8 +56,11 @@ function MessageRow({
 
   async function submitReport() {
     setReportUi("sending")
-    const ok = await onReport(reason)
-    setReportUi(ok ? "done" : "failed")
+    const result = await onReport(reason)
+    // 失败/被限流都保留 reason，重试不必重填（阶段 10）
+    if (result === "ok") setReportUi("done")
+    else if (result === "rate_limited") setReportUi("rate_limited")
+    else setReportUi("failed")
   }
 
   function translationNote() {
@@ -119,8 +126,18 @@ function MessageRow({
           {reportUi === "done" && (
             <span className="report-done">{t(myLanguage, "reportDone")}</span>
           )}
-          {reportUi === "failed" && (
-            <span className="report-failed">{t(myLanguage, "reportFailed")}</span>
+          {(reportUi === "failed" || reportUi === "rate_limited") && (
+            <>
+              <span className="report-failed">
+                {t(
+                  myLanguage,
+                  reportUi === "rate_limited" ? "errReportRateLimited" : "reportFailed",
+                )}
+              </span>
+              <button className="toggle" onClick={submitReport}>
+                {t(myLanguage, "retryReport")}
+              </button>
+            </>
           )}
         </span>
       )}
@@ -158,7 +175,14 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
 
     socket.onopen = () => {
       setStatus("open")
-      const join: ClientEvent = { type: "join", roomId: room.id, displayName, language }
+      // visitorId：浏览器本地持久，让服务端的发送/举报限流窗口跨连接生效
+      const join: ClientEvent = {
+        type: "join",
+        roomId: room.id,
+        displayName,
+        language,
+        visitorId: getVisitorId(),
+      }
       socket.send(JSON.stringify(join))
     }
 
@@ -257,32 +281,35 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
     }
   }
 
-  /** 提交举报：等 reported / error 回执或超时，告诉消息行成功与否。 */
-  function reportMessage(messageId: string, reason: string): Promise<boolean> {
+  /** 提交举报：等 reported / error 回执或超时，把结果告诉消息行（阶段 10 区分限流）。 */
+  function reportMessage(messageId: string, reason: string): Promise<ReportResult> {
     return new Promise((resolve) => {
       const socket = socketRef.current
       if (!socket || status !== "open") {
-        resolve(false)
+        resolve("network")
         return
       }
       let settled = false
-      const finish = (ok: boolean) => {
+      const finish = (result: ReportResult) => {
         if (settled) return
         settled = true
         clearTimeout(timer)
         socket.removeEventListener("message", onReply)
-        resolve(ok)
+        resolve(result)
       }
       const onReply = (e: MessageEvent) => {
         try {
           const ev = JSON.parse(String(e.data)) as ServerEvent
-          if (ev.type === "reported") finish(true)
-          else if (ev.type === "error" && ev.code === "bad_report") finish(false)
+          if (ev.type === "reported") finish("ok")
+          else if (ev.type === "error" && ev.code === "bad_report") finish("bad")
+          else if (ev.type === "error" && ev.code === "report_rate_limited") {
+            finish("rate_limited")
+          }
         } catch {
           // 忽略坏帧
         }
       }
-      const timer = setTimeout(() => finish(false), 5000)
+      const timer = setTimeout(() => finish("network"), 5000)
       socket.addEventListener("message", onReply)
       const event: ClientEvent = { type: "report", messageId, reason }
       socket.send(JSON.stringify(event))

@@ -3,7 +3,17 @@
 import type { ChatMessage, LanguageCode, MessageTranslation } from "./types"
 
 export type ClientEvent =
-  | { type: "join"; roomId: string; displayName: string; language: LanguageCode }
+  | {
+      type: "join"
+      roomId: string
+      displayName: string
+      language: LanguageCode
+      /**
+       * 浏览器本地持久的访客 id（阶段 10）：仅用作发送/举报限流的跨连接键，
+       * 不参与消息归属；缺省时服务端退回按连接隔离。
+       */
+      visitorId?: string
+    }
   | { type: "leave"; roomId: string }
   | { type: "send"; roomId: string; text: string; sourceLang: LanguageCode }
   | { type: "report"; messageId?: string; userId?: string; reason: string }

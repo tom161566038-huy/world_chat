@@ -88,6 +88,8 @@ interface Strings {
   cancel: string
   reportDone: string
   reportFailed: string
+  retryReport: string
+  errReportRateLimited: string
   // 服务端错误码 → 本地化文案
   errBadJson: string
   errNotJoined: string
@@ -183,6 +185,8 @@ const STRINGS: Record<string, Strings> = {
     cancel: "取消",
     reportDone: "已收到举报，感谢反馈",
     reportFailed: "提交失败，请稍后重试",
+    retryReport: "重试",
+    errReportRateLimited: "举报得太频繁了，请稍后再试",
     errBadJson: "消息格式错误",
     errNotJoined: "请先加入房间",
     errTooLong: "消息太长了，请删减后再发",
@@ -273,6 +277,8 @@ const STRINGS: Record<string, Strings> = {
     cancel: "Cancel",
     reportDone: "Report received — thank you",
     reportFailed: "Failed to submit, please try again",
+    retryReport: "Retry",
+    errReportRateLimited: "You're reporting too often, please wait a bit",
     errBadJson: "Malformed message",
     errNotJoined: "Join the room first",
     errTooLong: "Message too long, please shorten it",
@@ -363,6 +369,8 @@ const STRINGS: Record<string, Strings> = {
     cancel: "キャンセル",
     reportDone: "通報を受け付けました。ありがとうございます",
     reportFailed: "送信できませんでした。もう一度お試しください",
+    retryReport: "再試行",
+    errReportRateLimited: "通報が多すぎます。しばらく待ってからお試しください",
     errBadJson: "メッセージの形式が正しくありません",
     errNotJoined: "先に部屋に入ってください",
     errTooLong: "メッセージが長すぎます。短くしてください",
@@ -453,6 +461,8 @@ const STRINGS: Record<string, Strings> = {
     cancel: "Cancelar",
     reportDone: "Denuncia recibida, gracias",
     reportFailed: "No se pudo enviar, inténtalo de nuevo",
+    retryReport: "Reintentar",
+    errReportRateLimited: "Estás denunciando demasiado rápido, espera un momento",
     errBadJson: "Mensaje con formato incorrecto",
     errNotJoined: "Únete a la sala primero",
     errTooLong: "El mensaje es demasiado largo, acórtalo",
@@ -543,6 +553,8 @@ const STRINGS: Record<string, Strings> = {
     cancel: "Annuler",
     reportDone: "Signalement reçu, merci",
     reportFailed: "Échec de l'envoi, réessayez plus tard",
+    retryReport: "Réessayer",
+    errReportRateLimited: "Vous signalez trop souvent, patientez un instant",
     errBadJson: "Message mal formé",
     errNotJoined: "Rejoignez d'abord le salon",
     errTooLong: "Message trop long, veuillez le raccourcir",
@@ -612,6 +624,7 @@ export function serverErrorMessage(lang: LanguageCode, code: string): string {
     filtered: "errFiltered",
     rate_limited: "errRateLimited",
     bad_report: "errBadReport",
+    report_rate_limited: "errReportRateLimited",
     room_closed: "errRoomClosed",
   }
   return t(lang, keyMap[code] ?? "errFallback")

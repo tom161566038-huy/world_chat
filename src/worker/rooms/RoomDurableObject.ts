@@ -19,8 +19,12 @@ interface Session {
   senderName: string
   /** 界面语言，译文按它定向投递。 */
   language: LanguageCode
-  /** 最近成功发送的时间戳（滑动窗口），用于发送频率限制。 */
-  sentAt: number[]
+  /**
+   * 限流键（阶段 10）：优先用客户端带来的持久 visitorId，
+   * 使发送/举报限流窗口跨连接（重连、刷新）仍然生效；
+   * 没带时退回每连接一个随机 id（与消息归属的 userId 分开）。
+   */
+  rateKey: string
 }
 
 /** 每个房间保留的近期消息条数。 */
@@ -34,10 +38,24 @@ const MAX_BACKFILL = 20
  * 最多成功发送 RATE_MAX（5）条，折合平均 0.5 条/秒，允许短促连发。
  * 正常聊天远低于这个频率；被拒绝的消息不入库、不广播、不翻译，
  * 只回一个 error 事件，所以刷屏耗不了房间和翻译接口的资源。
- * 窗口放在内存里：DO 重启会清零，可接受（重启罕见，且只是多放行 5 条）。
+ * 阶段 10：窗口从 DO 内存挪到持久存储（键 `sendrate:{rateKey}`），
+ * 重连、刷新、DO 重启都不会清零；只保留窗口内的时间戳，过期即删。
  */
 const RATE_MAX = 5
 const RATE_WINDOW_MS = 10_000
+
+/**
+ * 举报频率限制（阶段 10）：每个用户每房间 REPORT_RATE_WINDOW_MS（60 秒）
+ * 内最多 REPORT_RATE_MAX（3）次，防止失败重试或恶意刷举报把存储写满。
+ */
+const REPORT_RATE_MAX = 3
+const REPORT_RATE_WINDOW_MS = 60_000
+
+/** 发送限流窗口存储键前缀：值为窗口内的时间戳数组。 */
+const SEND_RATE_PREFIX = "sendrate:"
+
+/** 举报限流窗口存储键前缀。 */
+const REPORT_RATE_PREFIX = "reportrate:"
 
 /** 消息长度上限，与前端输入框 maxLength 一致；超过直接拒绝而不是悄悄截断。 */
 const MAX_TEXT_LENGTH = 500
@@ -116,6 +134,12 @@ export class RoomDurableObject implements DurableObject {
     //（Worker 每次转发 /ws 都会带上 closesAt，非 WebSocket 请求也幂等无害）
     await this.ensureRoomMeta(new URL(request.url))
     if (request.headers.get("Upgrade") !== "websocket") {
+      // 阶段 10：只读举报导出，仅由 Worker 的管理入口（带密钥校验）转发过来
+      if (new URL(request.url).pathname === "/reports" && request.method === "GET") {
+        const entries = await this.state.storage.list<ReportRecord>({ prefix: REPORT_PREFIX })
+        const reports = [...entries.values()]
+        return Response.json({ room: this.state.id.name ?? this.state.id.toString(), reports })
+      }
       return new Response("Expected WebSocket", { status: 426 })
     }
 
@@ -205,7 +229,7 @@ export class RoomDurableObject implements DurableObject {
           userId: crypto.randomUUID(),
           senderName: event.displayName.trim().slice(0, 20) || "无名氏",
           language: event.language,
-          sentAt: [],
+          rateKey: event.visitorId?.trim().slice(0, 64) || crypto.randomUUID(),
         }
         this.sessions.set(socket, session)
         this.sendTo(socket, { type: "joined", roomId: event.roomId, userId: session.userId })
@@ -255,10 +279,12 @@ export class RoomDurableObject implements DurableObject {
           return
         }
 
-        // 阶段 6：发送频率限制，超频拒绝（不入库、不广播）
+        // 阶段 6/10：发送频率限制，超频拒绝（不入库、不广播）。
+        // 窗口落在 DO 存储：重连/刷新/重启后未过期记录仍计入。
         const now = Date.now()
-        session.sentAt = session.sentAt.filter((t) => now - t < RATE_WINDOW_MS)
-        if (session.sentAt.length >= RATE_MAX) {
+        const rateKey = SEND_RATE_PREFIX + session.rateKey
+        const window = await this.loadWindow(rateKey, now, RATE_WINDOW_MS)
+        if (window.length >= RATE_MAX) {
           this.sendTo(socket, {
             type: "error",
             code: "rate_limited",
@@ -266,7 +292,7 @@ export class RoomDurableObject implements DurableObject {
           })
           return
         }
-        session.sentAt.push(now)
+        await this.state.storage.put(rateKey, [...window, now])
 
         const seq = await this.nextSeq()
         const message: ChatMessage = {
@@ -306,6 +332,19 @@ export class RoomDurableObject implements DurableObject {
           })
           return
         }
+        // 阶段 10：举报本身限流，防止失败重试或恶意刷举报把存储写满。
+        // 与发送窗口一样落存储，跨连接生效；被拒的举报不落盘。
+        const reportRateKey = REPORT_RATE_PREFIX + session.rateKey
+        const reportWindow = await this.loadWindow(reportRateKey, Date.now(), REPORT_RATE_WINDOW_MS)
+        if (reportWindow.length >= REPORT_RATE_MAX) {
+          this.sendTo(socket, {
+            type: "error",
+            code: "report_rate_limited",
+            message: "举报得太频繁了，请稍后再试",
+          })
+          return
+        }
+        await this.state.storage.put(reportRateKey, [...reportWindow, Date.now()])
         const record: ReportRecord = {
           id: crypto.randomUUID(),
           roomId: this.state.id.name ?? this.state.id.toString(),
@@ -445,13 +484,25 @@ export class RoomDurableObject implements DurableObject {
   /**
    * 举报落盘，键为 `report:{时间戳左补零}:{记录id}`，按前缀 list 即按时间序读出。
    *
-   * 怎么查（阶段 6 先不做管理界面）：
-   * - 本地：wrangler dev 的 DO 数据在 .wrangler/state/ 下的 sqlite 文件里，
-   *   打开对应库按 report: 前缀查 storage 表；
-   * - 以后要做管理端时，给这个 DO 加一个仅管理员可调的 HTTP 路由，
-   *   内部 storage.list({ prefix: "report:" }) 返回即可。
+   * 怎么查（阶段 10）：Worker 暴露 `/admin/reports` 只读入口，凭
+   * `REPORTS_ADMIN_KEY` 密钥访问，内部转发到本 DO 的 `GET /reports`
+   * （storage.list({ prefix: "report:" })）。未配置密钥时入口 404。
    * 超出 MAX_REPORTS 的旧记录滚动删除，控制存储体积。
    */
+  /**
+   * 读滑动窗口内的时间戳（阶段 10）。窗口外的时间戳顺手删掉：
+   * 存储里只保留未过期记录，体积有界（每键最多几条）。
+   */
+  private async loadWindow(key: string, now: number, windowMs: number): Promise<number[]> {
+    const stamps = (await this.state.storage.get<number[]>(key)) ?? []
+    const inWindow = stamps.filter((t) => now - t < windowMs && Number.isFinite(t))
+    if (inWindow.length !== stamps.length) {
+      if (inWindow.length === 0) await this.state.storage.delete(key)
+      else await this.state.storage.put(key, inWindow)
+    }
+    return inWindow
+  }
+
   private async saveReport(record: ReportRecord): Promise<void> {
     const key = `${REPORT_PREFIX}${String(record.createdAt).padStart(16, "0")}:${record.id}`
     await this.state.storage.put(key, record)
