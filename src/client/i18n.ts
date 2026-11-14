@@ -96,6 +96,36 @@ interface Strings {
   errRateLimited: string
   errBadReport: string
   errFallback: string
+  // 阶段 9：自建房间 / 在房人数 / 关闭
+  userRoomsHeading: string
+  createRoom: string
+  roomTitleLabel: string
+  roomTitlePlaceholder: string
+  roomTopicLabel: string
+  roomTopicPlaceholder: string
+  durationLabel: string
+  duration1h: string
+  duration3h: string
+  duration12h: string
+  duration24h: string
+  createSubmit: string
+  creating: string
+  roomCreated: string
+  createdBy: string // {name}
+  occupants: string // {count}
+  closesInMinutes: string // {count}
+  closesInHours: string // {count}
+  errCreateRateLimited: string
+  errCreateFull: string
+  errCreateInvalid: string
+  errCreateFallback: string
+  errLoadRooms: string
+  roomClosedTitle: string
+  roomClosedBody: string
+  roomClosedBanner: string
+  errRoomClosed: string
+  inviteHint: string
+  loadingRoom: string
   // 房间名 / 话题（按 slug）
   roomLobbyTitle: string
   roomLobbyTopic: string
@@ -168,6 +198,35 @@ const STRINGS: Record<string, Strings> = {
     roomFoodTopic: "聊聊各地好吃的和家常菜",
     roomLanguageTitle: "语言交换",
     roomLanguageTopic: "互相教学，练口语练写作",
+    userRoomsHeading: "自建房间",
+    createRoom: "创建房间",
+    roomTitleLabel: "房间标题",
+    roomTitlePlaceholder: "给房间起个名字（1–40 字）",
+    roomTopicLabel: "话题（选填）",
+    roomTopicPlaceholder: "这个房间聊什么？（最多 80 字）",
+    durationLabel: "开放时长",
+    duration1h: "1 小时",
+    duration3h: "3 小时",
+    duration12h: "12 小时",
+    duration24h: "24 小时",
+    createSubmit: "创建",
+    creating: "创建中…",
+    roomCreated: "房间创建好了！到点关闭前都可以聊，把链接发给朋友吧：",
+    createdBy: "{name} 创建",
+    occupants: "{count} 人在房",
+    closesInMinutes: "{count} 分钟后关闭",
+    closesInHours: "{count} 小时后关闭",
+    errCreateRateLimited: "创建太频繁了，一小时后再试",
+    errCreateFull: "自建房间太多啦，等现有房间关闭后再创建",
+    errCreateInvalid: "填写的内容不合适，改一下再创建",
+    errCreateFallback: "创建失败，请稍后重试",
+    errLoadRooms: "房间列表加载失败，稍后会自动重试",
+    roomClosedTitle: "房间已关闭",
+    roomClosedBody: "这个房间到点关闭了，去房间列表看看别的房间吧。",
+    roomClosedBanner: "房间已关闭，不能再发言。",
+    errRoomClosed: "房间已关闭",
+    inviteHint: "只有你一个人？复制邀请链接，叫朋友进来聊吧。",
+    loadingRoom: "正在打开房间…",
   },
   en: {
     tagline: "Chat in your language — everyone reads in theirs.",
@@ -229,6 +288,35 @@ const STRINGS: Record<string, Strings> = {
     roomFoodTopic: "Local dishes, street food and home cooking",
     roomLanguageTitle: "Language Exchange",
     roomLanguageTopic: "Teach each other — practice speaking and writing",
+    userRoomsHeading: "Community rooms",
+    createRoom: "Create a room",
+    roomTitleLabel: "Room title",
+    roomTitlePlaceholder: "Name your room (1–40 characters)",
+    roomTopicLabel: "Topic (optional)",
+    roomTopicPlaceholder: "What is this room about? (up to 80 characters)",
+    durationLabel: "Open for",
+    duration1h: "1 hour",
+    duration3h: "3 hours",
+    duration12h: "12 hours",
+    duration24h: "24 hours",
+    createSubmit: "Create",
+    creating: "Creating…",
+    roomCreated: "Your room is ready! Share the link with friends — it stays open until closing time:",
+    createdBy: "Created by {name}",
+    occupants: "{count} in room",
+    closesInMinutes: "Closes in {count} min",
+    closesInHours: "Closes in {count} h",
+    errCreateRateLimited: "Creating too often — try again in an hour",
+    errCreateFull: "Too many open rooms right now; try again after some close",
+    errCreateInvalid: "Please adjust the fields and try again",
+    errCreateFallback: "Could not create the room, please retry",
+    errLoadRooms: "Couldn't load rooms — retrying automatically",
+    roomClosedTitle: "Room closed",
+    roomClosedBody: "This room reached its closing time. Check the room list for others.",
+    roomClosedBanner: "This room has closed — you can no longer send messages.",
+    errRoomClosed: "Room closed",
+    inviteHint: "All alone here? Copy the invite link and bring a friend in.",
+    loadingRoom: "Opening the room…",
   },
   ja: {
     tagline: "自分の言語で話そう。みんなには自分の言語で見える。",
@@ -290,6 +378,35 @@ const STRINGS: Record<string, Strings> = {
     roomFoodTopic: "ご当地グルメや家庭料理の話題",
     roomLanguageTitle: "ランゲージエクスチェンジ",
     roomLanguageTopic: "教え合って、話す・書くを練習しよう",
+    userRoomsHeading: "みんなの部屋",
+    createRoom: "部屋を作る",
+    roomTitleLabel: "部屋の名前",
+    roomTitlePlaceholder: "部屋の名前をどうぞ（1〜40 字）",
+    roomTopicLabel: "トピック（任意）",
+    roomTopicPlaceholder: "どんな話題の部屋？（80 字まで）",
+    durationLabel: "公開時間",
+    duration1h: "1 時間",
+    duration3h: "3 時間",
+    duration12h: "12 時間",
+    duration24h: "24 時間",
+    createSubmit: "作成",
+    creating: "作成中…",
+    roomCreated: "部屋ができました！閉鎖まで利用できるので、リンクを友達に送りましょう：",
+    createdBy: "{name} さんが作成",
+    occupants: "{count} 人在室中",
+    closesInMinutes: "あと {count} 分で閉鎖",
+    closesInHours: "あと {count} 時間で閉鎖",
+    errCreateRateLimited: "作成が多すぎます。1 時間ほど待ってからお試しください",
+    errCreateFull: "開いている部屋が多いため作成できません。いくつか閉じられた後にお試しください",
+    errCreateInvalid: "入力内容を直してもう一度お試しください",
+    errCreateFallback: "部屋を作成できませんでした。もう一度お試しください",
+    errLoadRooms: "部屋の一覧を取得できませんでした。自動で再試行します",
+    roomClosedTitle: "部屋は閉鎖されました",
+    roomClosedBody: "この部屋は閉鎖時間に達しました。一覧から別の部屋をどうぞ。",
+    roomClosedBanner: "部屋が閉鎖されたため、発言できません。",
+    errRoomClosed: "部屋は閉鎖されました",
+    inviteHint: "一人だけ？招待リンクをコピーして友達を呼びましょう。",
+    loadingRoom: "部屋を開いています…",
   },
   es: {
     tagline: "Chatea en tu idioma: cada quien lee en el suyo.",
@@ -351,6 +468,35 @@ const STRINGS: Record<string, Strings> = {
     roomFoodTopic: "Platos locales, comida callejera y cocina casera",
     roomLanguageTitle: "Intercambio de idiomas",
     roomLanguageTopic: "Enseña y aprende: practica hablar y escribir",
+    userRoomsHeading: "Salas de la comunidad",
+    createRoom: "Crear una sala",
+    roomTitleLabel: "Título de la sala",
+    roomTitlePlaceholder: "Ponle nombre a tu sala (1–40 caracteres)",
+    roomTopicLabel: "Tema (opcional)",
+    roomTopicPlaceholder: "¿De qué va esta sala? (hasta 80 caracteres)",
+    durationLabel: "Abierta durante",
+    duration1h: "1 hora",
+    duration3h: "3 horas",
+    duration12h: "12 horas",
+    duration24h: "24 horas",
+    createSubmit: "Crear",
+    creating: "Creando…",
+    roomCreated: "¡Tu sala está lista! Comparte el enlace con tus amigos antes de que cierre:",
+    createdBy: "Creada por {name}",
+    occupants: "{count} en la sala",
+    closesInMinutes: "Cierra en {count} min",
+    closesInHours: "Cierra en {count} h",
+    errCreateRateLimited: "Estás creando demasiadas salas; espera una hora",
+    errCreateFull: "Hay demasiadas salas abiertas; prueba cuando se cierren algunas",
+    errCreateInvalid: "Ajusta los campos e inténtalo de nuevo",
+    errCreateFallback: "No se pudo crear la sala, inténtalo de nuevo",
+    errLoadRooms: "No se pudieron cargar las salas; se reintentará automáticamente",
+    roomClosedTitle: "Sala cerrada",
+    roomClosedBody: "Esta sala llegó a su hora de cierre. Mira la lista para encontrar otras.",
+    roomClosedBanner: "La sala se ha cerrado: ya no puedes enviar mensajes.",
+    errRoomClosed: "Sala cerrada",
+    inviteHint: "¿Estás solo? Copia el enlace de invitación y trae a un amigo.",
+    loadingRoom: "Abriendo la sala…",
   },
   fr: {
     tagline: "Discutez dans votre langue — chacun lit dans la sienne.",
@@ -412,6 +558,35 @@ const STRINGS: Record<string, Strings> = {
     roomFoodTopic: "Plats locaux, street food et cuisine maison",
     roomLanguageTitle: "Échange linguistique",
     roomLanguageTopic: "Enseignez-vous mutuellement — pratiquez l'oral et l'écrit",
+    userRoomsHeading: "Salons de la communauté",
+    createRoom: "Créer un salon",
+    roomTitleLabel: "Titre du salon",
+    roomTitlePlaceholder: "Nommez votre salon (1–40 caractères)",
+    roomTopicLabel: "Thème (facultatif)",
+    roomTopicPlaceholder: "De quoi parle ce salon ? (80 caractères max)",
+    durationLabel: "Ouvert pendant",
+    duration1h: "1 heure",
+    duration3h: "3 heures",
+    duration12h: "12 heures",
+    duration24h: "24 heures",
+    createSubmit: "Créer",
+    creating: "Création…",
+    roomCreated: "Votre salon est prêt ! Partagez le lien avec vos amis avant la fermeture :",
+    createdBy: "Créé par {name}",
+    occupants: "{count} dans le salon",
+    closesInMinutes: "Ferme dans {count} min",
+    closesInHours: "Ferme dans {count} h",
+    errCreateRateLimited: "Trop de créations — réessayez dans une heure",
+    errCreateFull: "Trop de salons ouverts ; réessayez quand certains se seront fermés",
+    errCreateInvalid: "Ajustez les champs puis réessayez",
+    errCreateFallback: "Impossible de créer le salon, réessayez",
+    errLoadRooms: "Impossible de charger les salons ; nouvelle tentative automatique",
+    roomClosedTitle: "Salon fermé",
+    roomClosedBody: "Ce salon a atteint son heure de fermeture. Consultez la liste pour en trouver d'autres.",
+    roomClosedBanner: "Le salon est fermé : vous ne pouvez plus envoyer de messages.",
+    errRoomClosed: "Salon fermé",
+    inviteHint: "Tout seul ici ? Copiez le lien d'invitation et amenez un ami.",
+    loadingRoom: "Ouverture du salon…",
   },
 }
 
@@ -437,6 +612,7 @@ export function serverErrorMessage(lang: LanguageCode, code: string): string {
     filtered: "errFiltered",
     rate_limited: "errRateLimited",
     bad_report: "errBadReport",
+    room_closed: "errRoomClosed",
   }
   return t(lang, keyMap[code] ?? "errFallback")
 }

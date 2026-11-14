@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 import { BUILTIN_ROOMS } from "../shared/rooms"
+import type { Room } from "../shared/types"
+import { lookupRoom } from "./api"
 import Chat from "./Chat"
 import Docs from "./Docs"
 import Landing, { type Profile } from "./Landing"
@@ -22,12 +24,105 @@ function loadStoredProfile(): Profile | null {
   return null
 }
 
+function NoticePage({ title, body, backLabel }: { title: string; body: string; backLabel: string }) {
+  return (
+    <main className="setup">
+      <h1>{title}</h1>
+      <p className="subtitle">{body}</p>
+      <button className="link" onClick={() => navigate("/")}>
+        {backLabel}
+      </button>
+    </main>
+  )
+}
+
+/**
+ * /r/<slug> 的房间解析（阶段 9）：内置房间直接进；自建房间先查目录，
+ * 关闭的房间给明确「已关闭」页，不存在的按旧逻辑提示；需要身份时先收身份。
+ */
+function RoomRoute({
+  slug,
+  profile,
+  onProfile,
+}: {
+  slug: string
+  profile: Profile | null
+  onProfile: (profile: Profile) => void
+}) {
+  const uiLang = profile?.language ?? detectLanguage()
+  const builtin = BUILTIN_ROOMS.find((r) => r.slug === slug)
+  const [userRoom, setUserRoom] = useState<Room | null>(null)
+  const [lookupState, setLookupState] = useState<"loading" | "ok" | "closed" | "not_found">(
+    builtin ? "ok" : "loading",
+  )
+
+  useEffect(() => {
+    if (builtin) return
+    let cancelled = false
+    setUserRoom(null)
+    setLookupState("loading")
+    lookupRoom(slug).then((result) => {
+      if (cancelled) return
+      if (result.status === "ok") {
+        setUserRoom(result.room)
+        setLookupState("ok")
+      } else {
+        setLookupState(result.status)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [slug, builtin])
+
+  if (lookupState === "loading") {
+    return (
+      <main className="setup">
+        <p className="subtitle">{t(uiLang, "loadingRoom")}</p>
+      </main>
+    )
+  }
+  if (lookupState === "closed") {
+    return (
+      <NoticePage
+        title={t(uiLang, "roomClosedTitle")}
+        body={t(uiLang, "roomClosedBody")}
+        backLabel={t(uiLang, "backToRooms")}
+      />
+    )
+  }
+  if (lookupState === "not_found") {
+    return (
+      <NoticePage
+        title={t(uiLang, "notFoundTitle")}
+        body={t(uiLang, "notFoundBody", { room: slug })}
+        backLabel={t(uiLang, "backToRooms")}
+      />
+    )
+  }
+
+  const room = builtin ?? userRoom
+  if (!room || !profile) {
+    // 房间链接进来：先收集名称和语言，再进入该房间（停在原 URL）
+    return room ? <Landing room={room} onSubmit={onProfile} /> : null
+  }
+  return (
+    <Chat
+      room={room}
+      displayName={profile.displayName}
+      language={profile.language}
+      onLeave={() => navigate("/")}
+    />
+  )
+}
+
 export default function App() {
   const route = useRoute()
   const [profile, setProfile] = useState<Profile | null>(() => loadStoredProfile())
 
   useEffect(() => {
     if (profile) localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
+    else localStorage.removeItem(PROFILE_KEY)
   }, [profile])
 
   // html lang 与页面标题跟随当前视图 + 语言
@@ -56,30 +151,7 @@ export default function App() {
   }
 
   if (route.name === "room") {
-    const room = BUILTIN_ROOMS.find((r) => r.slug === route.slug)
-    if (!room) {
-      return (
-        <main className="setup">
-          <h1>{t(uiLang, "notFoundTitle")}</h1>
-          <p className="subtitle">{t(uiLang, "notFoundBody", { room: route.slug })}</p>
-          <button className="link" onClick={() => navigate("/")}>
-            {t(uiLang, "backToRooms")}
-          </button>
-        </main>
-      )
-    }
-    if (!profile) {
-      // 房间链接进来：先收集名称和语言，再进入该房间（停在原 URL）
-      return <Landing room={room} onSubmit={setProfile} />
-    }
-    return (
-      <Chat
-        room={room}
-        displayName={profile.displayName}
-        language={profile.language}
-        onLeave={() => navigate("/")}
-      />
-    )
+    return <RoomRoute slug={route.slug} profile={profile} onProfile={setProfile} />
   }
 
   // 根路径：有身份看房间列表，没有先看落地页

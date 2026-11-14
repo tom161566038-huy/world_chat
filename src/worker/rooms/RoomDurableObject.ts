@@ -1,4 +1,5 @@
 import type { ClientEvent, ServerEvent } from "../../shared/protocol"
+import type { OccupancyUpdate } from "../../shared/roomDirectory"
 import type { ChatMessage, LanguageCode, MessageTranslation } from "../../shared/types"
 import { findSpam } from "./moderation"
 import {
@@ -7,6 +8,11 @@ import {
   type TranslateEnv,
 } from "../translate/provider"
 import type { TranslateProvider } from "../translate/types"
+
+/** Room DO 的绑定：翻译环境变量 + 房间目录（在房人数上报，阶段 9）。 */
+export interface RoomEnv extends TranslateEnv {
+  ROOM_DIRECTORY: DurableObjectNamespace
+}
 
 interface Session {
   userId: string
@@ -68,6 +74,9 @@ const MSG_PREFIX = "msg:"
 /** 翻译缓存键前缀：`tr:{messageId}:{targetLang}`，同一组合只调用一次接口。 */
 const TR_PREFIX = "tr:"
 
+/** 自建房间元数据键：{ closesAt }。内置房间不写这个键、不设 Alarm。 */
+const META_KEY = "room:meta"
+
 /**
  * 单房间 Durable Object：管理 WebSocket 连接、广播并持久化近期消息。
  * DO 单线程串行处理请求，消息 id 和时间戳都在这里生成，
@@ -84,18 +93,28 @@ const TR_PREFIX = "tr:"
 export class RoomDurableObject implements DurableObject {
   private sessions = new Map<WebSocket, Session>()
   private state: DurableObjectState
+  private env: RoomEnv
   private provider: TranslateProvider
   /** 消息序号，惰性从存储恢复，避免 DO 重启后错乱。 */
   private seq: number | null = null
   /** 进行中的翻译请求去重：同一消息同一目标语言并发时只发一次接口调用。 */
   private inflight = new Map<string, Promise<MessageTranslation | null>>()
+  /** 自建房间关闭时间（毫秒）；内置房间为 null。惰性从存储恢复。 */
+  private closesAt: number | null = null
+  private metaLoaded = false
+  /** 到点关闭后置 true：拒绝 join/send，广播 room_closed。 */
+  private closed = false
 
-  constructor(state: DurableObjectState, env: TranslateEnv) {
+  constructor(state: DurableObjectState, env: RoomEnv) {
     this.state = state
+    this.env = env
     this.provider = createTranslateProvider(env)
   }
 
   async fetch(request: Request): Promise<Response> {
+    // 元数据恢复放在 Upgrade 检查之前：Alarm 依赖它尽早设上
+    //（Worker 每次转发 /ws 都会带上 closesAt，非 WebSocket 请求也幂等无害）
+    await this.ensureRoomMeta(new URL(request.url))
     if (request.headers.get("Upgrade") !== "websocket") {
       return new Response("Expected WebSocket", { status: 426 })
     }
@@ -106,6 +125,44 @@ export class RoomDurableObject implements DurableObject {
     this.attach(server)
 
     return new Response(null, { status: 101, webSocket: client })
+  }
+
+  /** Alarm 到点：广播关闭事件、断开所有连接、人数清零上报。 */
+  async alarm(): Promise<void> {
+    if (!this.metaLoaded) await this.ensureRoomMeta(null)
+    // 只看有没有关闭时间：ensureRoomMeta 在到点后也会把 closed 置真，
+    // 但那不代表「已经广播过关闭」，这里仍要广播并断开连接
+    if (this.closesAt === null) return
+    this.closed = true
+    this.broadcast({ type: "room_closed" })
+    for (const socket of this.sessions.keys()) {
+      try {
+        socket.close(1000, "room closed")
+      } catch {
+        this.sessions.delete(socket)
+      }
+    }
+    this.sessions.clear()
+    this.notifyOccupancy()
+  }
+
+  /**
+   * 首次连接时恢复/写入房间元数据。Worker 转发自建房间的 /ws 时会带上
+   * closesAt 参数；存进存储后 DO 重启也能重新设上 Alarm（Alarm 本身持久，
+   * 这里幂等重设一次作保险）。已过关闭时间则直接进入关闭态。
+   */
+  private async ensureRoomMeta(url: URL | null): Promise<void> {
+    if (this.metaLoaded) return
+    this.metaLoaded = true
+    const param = url ? Number(url.searchParams.get("closesAt") ?? "") : Number.NaN
+    if (Number.isFinite(param) && param > 0) {
+      await this.state.storage.put(META_KEY, { closesAt: param })
+    }
+    this.closesAt = (await this.state.storage.get<{ closesAt: number }>(META_KEY))?.closesAt ?? null
+    if (this.closesAt !== null) {
+      if (Date.now() >= this.closesAt) this.closed = true
+      else await this.state.storage.setAlarm(this.closesAt)
+    }
   }
 
   private attach(server: WebSocket): void {
@@ -119,7 +176,12 @@ export class RoomDurableObject implements DurableObject {
     })
 
     server.addEventListener("close", () => {
-      this.sessions.delete(server)
+      const wasSession = this.sessions.delete(server)
+      if (wasSession) {
+        // 在房人数变化：通知房内剩余连接并上报目录
+        this.broadcastPresence()
+        this.notifyOccupancy()
+      }
     })
   }
 
@@ -134,6 +196,11 @@ export class RoomDurableObject implements DurableObject {
 
     switch (event.type) {
       case "join": {
+        if (this.closed) {
+          this.sendTo(socket, { type: "error", code: "room_closed", message: "房间已关闭" })
+          socket.close()
+          return
+        }
         const session: Session = {
           userId: crypto.randomUUID(),
           senderName: event.displayName.trim().slice(0, 20) || "无名氏",
@@ -153,12 +220,19 @@ export class RoomDurableObject implements DurableObject {
         this.sendTo(socket, { type: "history", messages: items })
         // 历史里缺译文的不阻塞加入，异步补齐后单独推送（同语言的消息本来就不用翻）
         this.state.waitUntil(this.backfillHistory(socket, items, session.language))
+        // 在房人数变化：广播 presence 并上报目录（阶段 9）
+        this.broadcastPresence()
+        this.notifyOccupancy()
         return
       }
       case "send": {
         const session = this.sessions.get(socket)
         if (!session) {
           this.sendTo(socket, { type: "error", code: "not_joined", message: "请先加入房间" })
+          return
+        }
+        if (this.closed) {
+          this.sendTo(socket, { type: "error", code: "room_closed", message: "房间已关闭" })
           return
         }
         const text = event.text.trim()
@@ -473,5 +547,31 @@ export class RoomDurableObject implements DurableObject {
         this.sessions.delete(socket)
       }
     }
+  }
+
+  /** 在房人数变化时广播给房内所有人（新加入的连接也会立刻知道自己不是一个人）。 */
+  private broadcastPresence(): void {
+    this.broadcast({ type: "presence", count: this.sessions.size })
+  }
+
+  /** 把当前会话数上报给房间目录，大厅列表据此展示在房人数。 */
+  private notifyOccupancy(): void {
+    const slug = this.state.id.name
+    if (!slug) return
+    const count = this.sessions.size
+    const update: OccupancyUpdate = { slug, count }
+    const stub = this.env.ROOM_DIRECTORY.get(this.env.ROOM_DIRECTORY.idFromName("directory"))
+    this.state.waitUntil(
+      stub
+        .fetch("https://directory/occupancy", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(update),
+        })
+        .then(
+          () => undefined,
+          (error) => console.error(`[occupancy] 上报失败: ${slug}=${count}`, error),
+        ),
+    )
   }
 }

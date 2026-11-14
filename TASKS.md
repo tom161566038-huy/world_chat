@@ -178,14 +178,48 @@
   本机国内网络无法访问 workers.dev（且 wrangler dev 因 AI 远端代理认证
   刷新失败起不来），线上体验按 DEPLOY.md 清单待可访问网络复测。
 
-## 阶段 9：房间产品化（未开始，先登记计划）
+## 阶段 9：房间产品化（已完成）
 
-- [ ] 自建房间（房主创建话题房间，替代只有内置房间）
-- [ ] 限时开放（房间到点关闭，不再常开）
-- [ ] 在房人数展示
+- [x] 自建房间（房主创建话题房间，替代只有内置房间）
+- [x] 限时开放（房间到点关闭，不再常开）
+- [x] 在房人数展示
 
 完成标准：用户可以自己创建房间并分享链接，房间列表显示在房人数，
 房间可按时关闭。
+
+落地说明（版本 `ed25d153-b56f-4adb-90b3-48ba595f3a4e`）：
+
+- 房间目录：新增单一实例 SQLite DO `RoomDirectoryDurableObject`
+  （`idFromName("directory")`，wrangler 迁移 tag `v9_room_directory`）。
+  不引入 D1——目录是全局单点小数据（活跃上限 50 个），DO 存储免额外绑定，
+  与消息存储选型一致。键：`room:{slug}` 房间记录、`occ:{slug}` 在房人数、
+  `rate:{creatorId}` 创建限流时间戳。
+- 创建（A）：`POST /api/rooms` → 目录 DO `/create`。标题 1–40 字、话题
+  0–80 字（按 Unicode 码点计），时长预设 1/3（默认）/12/24 小时；服务端生成
+  6 位小写字母数字 slug（避开内置房间与冲突）；同一创建者每小时最多 3 个、
+  全站活跃房间上限 50，超了分别返回 `rate_limited` / `too_many_rooms`。
+  创建者记录展示名 + 前端生成的访客 id（无账号体系）。
+- 限时关闭（B）：目录存 `closesAt`；Worker `/ws` 放行自建房间前先查目录，
+  未知/已关闭一律 404（不信任前端），放行时把 `closesAt` 带给房间 DO；
+  房间 DO 首次连接写入 `room:meta` 并设 Alarm，到点广播 `room_closed`、
+  断开全部连接、人数上报清零；之后 join/send 被拒（error code `room_closed`）。
+  列表/查询单房时已过期记录懒清理；历史消息仍留在各自房间 DO。
+- 在房人数（C）：以房间 DO 的 WebSocket 会话为准，join/leave/关闭时向目录
+  上报 `POST /occupancy`；前端大厅列表 12 秒轮询 + 页面切回可见时刷新；
+  聊天标题显示「N 人在房」（协议新增 `presence` 事件，join 后即推）。
+- 空房引导（D）：房内只有自己时显示邀请链接复制横幅；「更换身份」现在会
+  清掉 localStorage 的 `worldchat:profile`（阶段 8 遗留问题顺手修复）。
+- 前端：大厅显示「内置房间 + 自建房间」两段列表，自建房间行显示创建者与
+  关闭倒计时；创建成功面板给链接 + 进入/复制；打开已关闭房间链接显示
+  「房间已关闭」页；全部新文案进 i18n ×5 语言。
+- 本地验证：typecheck 通过；mock DurableObjectState + tsx 跑真实 DO/Worker
+  代码——目录（创建/字段校验/限流/上限/列表/单查 200/410/404/人数写入与
+  防灌键）、房间 DO（到点 Alarm 广播关闭 + 人数清零上报、fetch 带 closesAt
+  设 Alarm、meta 持久化）、Worker 路由（内置直接放行、自建带 closesAt 转发、
+  已关闭/未知 404、/api/rooms 代理、SPA 兜底）全部通过。顺带发现并修复
+  一个真 bug：alarm() 原会在已过关闭时间时提前 return，导致休眠 DO 被唤醒后
+  不广播 room_closed、连接吊死。本机国内网络无法访问 workers.dev，线上
+  按 DEPLOY.md 清单待可访问网络复测。
 
 ## 阶段 10：信任与安全加固（未开始，先登记计划）
 

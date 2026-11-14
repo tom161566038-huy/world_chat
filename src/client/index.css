@@ -131,6 +131,90 @@ body {
   border-color: #4a6cf7;
 }
 
+/* 阶段 9：房间行元信息（在房人数 / 创建者 / 关闭倒计时） */
+.room-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #9aa0b0;
+}
+
+.occ-badge {
+  color: #4a6cf7;
+  font-weight: 500;
+}
+
+.chat-title .occ-badge {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.load-error,
+.create-error {
+  color: #c0392b;
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+/* 创建房间表单 */
+.create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 16px;
+  border: 1px solid #e3e6ef;
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* 创建成功面板：链接 + 进入/复制 */
+.created-panel {
+  margin: 12px 0;
+  padding: 16px;
+  border: 1px solid #cfe0ff;
+  border-radius: 12px;
+  background: #f0f5ff;
+  text-align: left;
+}
+
+.created-link {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  word-break: break-all;
+  color: #4a6cf7;
+}
+
+/* 聊天：空房引导与关闭横幅（阶段 9） */
+.invite-hint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px dashed #cfe0ff;
+  border-radius: 12px;
+  background: #f7faff;
+  color: #5b6478;
+  font-size: 13px;
+}
+
+.closed-banner {
+  background: #fff4e5;
+  color: #8a5300;
+}
+
 /* 隐私/条款文档页 */
 .doc h2 {
   font-size: 16px;

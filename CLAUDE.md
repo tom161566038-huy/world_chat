@@ -20,6 +20,8 @@
 - 不得把 API 密钥写入仓库。使用 `.dev.vars` / 环境变量，并更新 `.gitignore`。
 - 不得接入没有预算上限说明的付费翻译 API。
 - 每条译文必须能查看原文。
+- 数据存储只用 Durable Object 自带 SQLite 存储（消息在 `RoomDurableObject`，
+  自建房间目录在单一实例 `RoomDirectoryDurableObject`），不引入 D1。
 - 保持 TypeScript 严格模式，公共类型放 `src/shared`。
 - 改动保持最小，不要重构无关代码，不要新增未在当前阶段出现的依赖。
 

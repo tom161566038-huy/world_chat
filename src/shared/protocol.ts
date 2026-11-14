@@ -22,5 +22,12 @@ export type ServerEvent =
    * 前端据此显示「翻译暂时不可用」而不是默默只剩原文。
    */
   | { type: "translation_failed"; messageId: string; targetLang: LanguageCode }
+  /**
+   * 在房人数（阶段 9）：有人 join/离开/断开时广播给房内所有人，
+   * 人数以该房间 DO 当前 WebSocket 会话数为准；新加入的连接也会先收到一条。
+   */
+  | { type: "presence"; count: number }
+  /** 自建房间到点关闭（阶段 9）：收到后不能再发言，服务端随后会断开连接。 */
+  | { type: "room_closed" }
   | { type: "error"; code: string; message: string }
   | { type: "reported"; ok: true }

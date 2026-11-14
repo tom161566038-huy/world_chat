@@ -140,6 +140,11 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
   /** 服务端 error 事件（按 code 本地化），短暂展示后自动消失。 */
   const [serverError, setServerError] = useState<string | null>(null)
   const [inviteCopied, setInviteCopied] = useState(false)
+  /** 在房人数（阶段 9）：join 后和每次变化时服务端都会推 presence。 */
+  const [occupantCount, setOccupantCount] = useState<number | null>(null)
+  /** 自建房间到点关闭（阶段 9）：停止重连、禁用输入、显示关闭横幅。 */
+  const [roomClosed, setRoomClosed] = useState(false)
+  const roomClosedRef = useRef(false)
   /** 断线后 +1 触发 effect 重建 WebSocket，实现自动重连。 */
   const [attempt, setAttempt] = useState(0)
   const socketRef = useRef<WebSocket | null>(null)
@@ -197,6 +202,11 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
         if (sameLanguage(event.targetLang, language)) {
           setFailedTranslations((prev) => new Set(prev).add(event.messageId))
         }
+      } else if (event.type === "presence") {
+        setOccupantCount(event.count)
+      } else if (event.type === "room_closed") {
+        roomClosedRef.current = true
+        setRoomClosed(true)
       } else if (event.type === "error") {
         setServerError(serverErrorMessage(language, event.code))
       }
@@ -204,8 +214,10 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
 
     socket.onclose = () => {
       setStatus("closed")
-      // 自动重连：稍等片刻重建连接（离开房间时不重连）
-      if (!disposed) retryTimer = window.setTimeout(() => setAttempt((n) => n + 1), RETRY_DELAY_MS)
+      // 自动重连：稍等片刻重建连接（离开房间、房间到点关闭时不重连）
+      if (!disposed && !roomClosedRef.current) {
+        retryTimer = window.setTimeout(() => setAttempt((n) => n + 1), RETRY_DELAY_MS)
+      }
     }
     socket.onerror = () => setStatus("closed")
 
@@ -232,7 +244,7 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
 
   function send() {
     const text = draft.trim()
-    if (!text || status !== "open") return
+    if (!text || status !== "open" || roomClosed) return
     const event: ClientEvent = { type: "send", roomId: room.id, text, sourceLang: language }
     socketRef.current?.send(JSON.stringify(event))
     setDraft("")
@@ -291,7 +303,14 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
         <button className="link" onClick={onLeave}>
           {t(language, "leave")}
         </button>
-        <span className="chat-title">{roomTitle}</span>
+        <span className="chat-title">
+          {roomTitle}
+          {occupantCount !== null && (
+            <span className="occ-badge">
+              {t(language, "occupants", { count: String(occupantCount) })}
+            </span>
+          )}
+        </span>
         <span className="header-right">
           <button className="toggle invite" onClick={copyInvite}>
             {inviteCopied ? t(language, "inviteCopied") : t(language, "inviteBtn")}
@@ -300,10 +319,16 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
         </span>
       </header>
 
-      {status === "closed" && (
-        <div className="offline-banner" role="alert">
-          {t(language, "offlineBanner")}
+      {roomClosed ? (
+        <div className="offline-banner closed-banner" role="alert">
+          {t(language, "roomClosedBanner")}
         </div>
+      ) : (
+        status === "closed" && (
+          <div className="offline-banner" role="alert">
+            {t(language, "offlineBanner")}
+          </div>
+        )
       )}
 
       <div className="messages" ref={listRef}>
@@ -311,6 +336,14 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
           <p className="empty">
             {status === "open" ? t(language, "emptyRoom") : t(language, "joiningRoom")}
           </p>
+        )}
+        {!roomClosed && occupantCount !== null && occupantCount <= 1 && (
+          <div className="invite-hint">
+            <span>{t(language, "inviteHint")}</span>
+            <button className="toggle" onClick={copyInvite}>
+              {inviteCopied ? t(language, "inviteCopied") : t(language, "inviteBtn")}
+            </button>
+          </div>
         )}
         {messages.map((msg) => (
           <MessageRow
@@ -343,8 +376,9 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
           onChange={(e) => setDraft(e.target.value)}
           placeholder={t(language, "inputPlaceholder")}
           maxLength={500}
+          disabled={roomClosed}
         />
-        <button type="submit" disabled={status !== "open" || !draft.trim()}>
+        <button type="submit" disabled={roomClosed || status !== "open" || !draft.trim()}>
           {t(language, "sendBtn")}
         </button>
       </form>
