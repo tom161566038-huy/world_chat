@@ -1,7 +1,7 @@
 {
-  "name": "WorldChat",
+  "name": "WorldChat — 全球实时翻译聊天室",
   "short_name": "WorldChat",
-  "description": "用自己的语言聊天，看到大家的语言。",
+  "description": "用自己的语言聊天，大家看到的是他们自己的语言；每条消息都能查看原文。免费、免注册。",
   "lang": "zh-CN",
   "start_url": "/",
   "scope": "/",

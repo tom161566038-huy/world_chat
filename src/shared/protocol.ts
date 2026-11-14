@@ -17,5 +17,10 @@ export type ServerEvent =
     }
   /** 译文在原文广播后异步送达：只发给需要该目标语言的连接。 */
   | { type: "translation"; translation: MessageTranslation }
+  /**
+   * 翻译失败信号（阶段 8）：整条 Provider 链都失败时发给对应语言的连接，
+   * 前端据此显示「翻译暂时不可用」而不是默默只剩原文。
+   */
+  | { type: "translation_failed"; messageId: string; targetLang: LanguageCode }
   | { type: "error"; code: string; message: string }
   | { type: "reported"; ok: true }

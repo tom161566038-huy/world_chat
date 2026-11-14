@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState } from "react"
 import type { ClientEvent, ServerEvent } from "../shared/protocol"
-import type { ChatMessage, LanguageCode, MessageTranslation } from "../shared/types"
+import type { ChatMessage, LanguageCode, MessageTranslation, Room } from "../shared/types"
+import { roomMeta, sameLanguage, serverErrorMessage, t } from "./i18n"
+import { roomLink } from "./router"
+import { copyText } from "./share"
 import { wsUrl } from "./wsUrl"
 
 interface ChatProps {
-  roomId: string
+  room: Room
   displayName: string
   language: LanguageCode
   onLeave: () => void
 }
 
 type ConnectionState = "connecting" | "open" | "closed"
+
+/** 断线后自动重连的间隔；重连由 attempt 计数触发 effect 重建。 */
+const RETRY_DELAY_MS = 3000
 
 /** 单条消息的举报流程状态：隐藏 → 填理由 → 提交中 → 完成/失败。 */
 type ReportUiState = "hidden" | "form" | "sending" | "done" | "failed"
@@ -20,12 +26,15 @@ function MessageRow({
   message,
   mine,
   translation,
+  translationFailed,
   myLanguage,
   onReport,
 }: {
   message: ChatMessage
   mine: boolean
   translation?: MessageTranslation
+  /** 服务端明确通知过「这条译不出来」，UI 给出说明而不是默默显示原文。 */
+  translationFailed: boolean
   myLanguage: LanguageCode
   /** 提交举报，resolve true 表示服务端已记录。 */
   onReport: (reason: string) => Promise<boolean>
@@ -38,11 +47,25 @@ function MessageRow({
     translation !== undefined &&
     translation.targetLang === myLanguage &&
     translation.text !== message.sourceText
+  // 与原语言相同本来就不翻译；不同语言但译文还没到时给「翻译中/失败」提示
+  const needsTranslation = !mine && !sameLanguage(message.sourceLang, myLanguage)
 
   async function submitReport() {
     setReportUi("sending")
     const ok = await onReport(reason)
     setReportUi(ok ? "done" : "failed")
+  }
+
+  function translationNote() {
+    if (translated || !needsTranslation) return null
+    if (translationFailed) {
+      return (
+        <button className="tr-failed" onClick={() => setShowOriginal(true)}>
+          {t(myLanguage, "translationFailed")}
+        </button>
+      )
+    }
+    return <span className="tr-pending">{t(myLanguage, "translating")}</span>
   }
 
   return (
@@ -52,19 +75,23 @@ function MessageRow({
         <>
           <p className="bubble">{translation.text}</p>
           <button className="toggle" onClick={() => setShowOriginal((v) => !v)}>
-            {showOriginal ? "收起原文" : "查看原文"}
+            {showOriginal ? t(myLanguage, "hideOriginal") : t(myLanguage, "showOriginal")}
           </button>
           {showOriginal && <p className="original">{message.sourceText}</p>}
         </>
       ) : (
-        <p className="bubble">{message.sourceText}</p>
+        <>
+          <p className="bubble">{message.sourceText}</p>
+          {translationNote()}
+          {showOriginal && <p className="original">{message.sourceText}</p>}
+        </>
       )}
 
       {!mine && (
         <span className="report-area">
           {reportUi === "hidden" && (
             <button className="toggle" onClick={() => setReportUi("form")}>
-              举报
+              {t(myLanguage, "report")}
             </button>
           )}
           {(reportUi === "form" || reportUi === "sending") && (
@@ -73,49 +100,60 @@ function MessageRow({
                 className="report-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="举报理由（选填）"
+                placeholder={t(myLanguage, "reportPlaceholder")}
                 maxLength={200}
                 disabled={reportUi === "sending"}
               />
               <button className="toggle" disabled={reportUi === "sending"} onClick={submitReport}>
-                {reportUi === "sending" ? "提交中…" : "提交"}
+                {reportUi === "sending" ? t(myLanguage, "submitting") : t(myLanguage, "submitBtn")}
               </button>
               <button
                 className="toggle"
                 disabled={reportUi === "sending"}
                 onClick={() => setReportUi("hidden")}
               >
-                取消
+                {t(myLanguage, "cancel")}
               </button>
             </>
           )}
-          {reportUi === "done" && <span className="report-done">已收到举报，感谢反馈</span>}
-          {reportUi === "failed" && <span className="report-failed">提交失败，请稍后重试</span>}
+          {reportUi === "done" && (
+            <span className="report-done">{t(myLanguage, "reportDone")}</span>
+          )}
+          {reportUi === "failed" && (
+            <span className="report-failed">{t(myLanguage, "reportFailed")}</span>
+          )}
         </span>
       )}
     </div>
   )
 }
 
-export default function Chat({ roomId, displayName, language, onLeave }: ChatProps) {
+export default function Chat({ room, displayName, language, onLeave }: ChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   /** messageId -> 译文，原文广播后服务端会异步推送过来。 */
   const [translations, setTranslations] = useState<Record<string, MessageTranslation>>({})
+  /** 服务端通知过「翻译失败」的消息 id（按我的语言），用于显示失败说明。 */
+  const [failedTranslations, setFailedTranslations] = useState<Set<string>>(new Set())
   const [draft, setDraft] = useState("")
   const [status, setStatus] = useState<ConnectionState>("connecting")
   const [myUserId, setMyUserId] = useState<string | null>(null)
-  /** 服务端 error 事件的提示（限频/超长/被过滤等），短暂展示后自动消失。 */
+  /** 服务端 error 事件（按 code 本地化），短暂展示后自动消失。 */
   const [serverError, setServerError] = useState<string | null>(null)
+  const [inviteCopied, setInviteCopied] = useState(false)
+  /** 断线后 +1 触发 effect 重建 WebSocket，实现自动重连。 */
+  const [attempt, setAttempt] = useState(0)
   const socketRef = useRef<WebSocket | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    const socket = new WebSocket(wsUrl(roomId))
+    let disposed = false
+    let retryTimer: number | undefined
+    const socket = new WebSocket(wsUrl(room.id))
     socketRef.current = socket
 
     socket.onopen = () => {
       setStatus("open")
-      const join: ClientEvent = { type: "join", roomId, displayName, language }
+      const join: ClientEvent = { type: "join", roomId: room.id, displayName, language }
       socket.send(JSON.stringify(join))
     }
 
@@ -137,7 +175,7 @@ export default function Chat({ roomId, displayName, language, onLeave }: ChatPro
         if (cached.length > 0) {
           setTranslations((prev) => {
             const next = { ...prev }
-            for (const t of cached) next[t.messageId] = t
+            for (const item of cached) next[item.messageId] = item
             return next
           })
         }
@@ -148,19 +186,37 @@ export default function Chat({ roomId, displayName, language, onLeave }: ChatPro
           ...prev,
           [event.translation.messageId]: event.translation,
         }))
+        setFailedTranslations((prev) => {
+          if (!prev.has(event.translation.messageId)) return prev
+          const next = new Set(prev)
+          next.delete(event.translation.messageId)
+          return next
+        })
+      } else if (event.type === "translation_failed") {
+        // 只关心发给「我的语言」的失败信号
+        if (sameLanguage(event.targetLang, language)) {
+          setFailedTranslations((prev) => new Set(prev).add(event.messageId))
+        }
       } else if (event.type === "error") {
-        setServerError(event.message)
+        setServerError(serverErrorMessage(language, event.code))
       }
     }
 
-    socket.onclose = () => setStatus("closed")
+    socket.onclose = () => {
+      setStatus("closed")
+      // 自动重连：稍等片刻重建连接（离开房间时不重连）
+      if (!disposed) retryTimer = window.setTimeout(() => setAttempt((n) => n + 1), RETRY_DELAY_MS)
+    }
     socket.onerror = () => setStatus("closed")
 
     return () => {
+      disposed = true
+      if (retryTimer !== undefined) clearTimeout(retryTimer)
+      socket.onclose = null
       socket.close()
       socketRef.current = null
     }
-  }, [roomId, displayName, language])
+  }, [room.id, displayName, language, attempt])
 
   // 新消息时滚到底部
   useEffect(() => {
@@ -177,9 +233,16 @@ export default function Chat({ roomId, displayName, language, onLeave }: ChatPro
   function send() {
     const text = draft.trim()
     if (!text || status !== "open") return
-    const event: ClientEvent = { type: "send", roomId, text, sourceLang: language }
+    const event: ClientEvent = { type: "send", roomId: room.id, text, sourceLang: language }
     socketRef.current?.send(JSON.stringify(event))
     setDraft("")
+  }
+
+  async function copyInvite() {
+    if (await copyText(roomLink(room.slug))) {
+      setInviteCopied(true)
+      setTimeout(() => setInviteCopied(false), 2000)
+    }
   }
 
   /** 提交举报：等 reported / error 回执或超时，告诉消息行成功与否。 */
@@ -214,31 +277,48 @@ export default function Chat({ roomId, displayName, language, onLeave }: ChatPro
     })
   }
 
+  const roomTitle = roomMeta(language, room.slug, room).title
+  const connLabel =
+    status === "open"
+      ? t(language, "connected")
+      : status === "connecting"
+        ? t(language, "connecting")
+        : t(language, "reconnecting")
+
   return (
     <main className="chat">
       <header className="chat-header">
         <button className="link" onClick={onLeave}>
-          ← 离开
+          {t(language, "leave")}
         </button>
-        <span className={`conn conn-${status}`}>
-          {status === "open" ? "已连接" : status === "connecting" ? "连接中…" : "已断开"}
+        <span className="chat-title">{roomTitle}</span>
+        <span className="header-right">
+          <button className="toggle invite" onClick={copyInvite}>
+            {inviteCopied ? t(language, "inviteCopied") : t(language, "inviteBtn")}
+          </button>
+          <span className={`conn conn-${status}`}>{connLabel}</span>
         </span>
       </header>
 
       {status === "closed" && (
         <div className="offline-banner" role="alert">
-          网络断开，消息暂时发不出去；恢复网络后请刷新或重新进入房间。
+          {t(language, "offlineBanner")}
         </div>
       )}
 
       <div className="messages" ref={listRef}>
-        {messages.length === 0 && <p className="empty">还没有消息，打个招呼吧~</p>}
+        {messages.length === 0 && (
+          <p className="empty">
+            {status === "open" ? t(language, "emptyRoom") : t(language, "joiningRoom")}
+          </p>
+        )}
         {messages.map((msg) => (
           <MessageRow
             key={msg.id}
             message={msg}
             mine={msg.senderId === myUserId}
             translation={translations[msg.id]}
+            translationFailed={failedTranslations.has(msg.id)}
             myLanguage={language}
             onReport={(reason) => reportMessage(msg.id, reason)}
           />
@@ -261,11 +341,11 @@ export default function Chat({ roomId, displayName, language, onLeave }: ChatPro
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="输入消息…"
+          placeholder={t(language, "inputPlaceholder")}
           maxLength={500}
         />
         <button type="submit" disabled={status !== "open" || !draft.trim()}>
-          发送
+          {t(language, "sendBtn")}
         </button>
       </form>
     </main>

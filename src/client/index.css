@@ -18,7 +18,8 @@ body {
 .setup {
   max-width: 480px;
   margin: 0 auto;
-  padding: 32px 20px;
+  /* 左右留白取「常规内边距」与安全区（刘海/圆角横屏时）的较大值 */
+  padding: 32px max(20px, env(safe-area-inset-right)) 32px max(20px, env(safe-area-inset-left));
 }
 
 .subtitle {
@@ -62,6 +63,84 @@ body {
 /* 房间列表 */
 .rooms {
   margin-top: 24px;
+}
+
+/* 落地页（阶段 8）：这是什么 / 怎么用 */
+.landing .how .intro {
+  color: #1f2430;
+  line-height: 1.7;
+}
+
+.landing .how h2 {
+  font-size: 16px;
+  color: #5a6072;
+}
+
+.landing .how ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: #1f2430;
+  line-height: 1.8;
+}
+
+.enter-room-note {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #3b4dbb;
+  font-size: 14px;
+}
+
+.footer-links {
+  margin-top: 32px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: #9aa0b0;
+}
+
+.footer-links a {
+  color: #4a6cf7;
+}
+
+/* 房间列表行：进入按钮 + 复制分享链接 */
+.room-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.room-row .room-item {
+  flex: 1;
+}
+
+.copy-link {
+  flex-shrink: 0;
+  padding: 0 12px;
+  border: 1px solid #e3e6ef;
+  border-radius: 10px;
+  background: #fff;
+  color: #4a6cf7;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.copy-link:hover {
+  border-color: #4a6cf7;
+}
+
+/* 隐私/条款文档页 */
+.doc h2 {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.doc p {
+  margin: 0 0 8px;
+  color: #3c4254;
+  line-height: 1.7;
 }
 
 .rooms h2 {
@@ -127,16 +206,61 @@ body {
   height: 100dvh;
   max-width: 640px;
   margin: 0 auto;
+  /* 横屏刘海/圆角留白，内容不被安全区挡住 */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 .chat-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   padding: 12px 16px;
   padding-top: calc(12px + env(safe-area-inset-top));
   border-bottom: 1px solid #e3e6ef;
   background: #fff;
+}
+
+.chat-title {
+  font-weight: 600;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.invite {
+  white-space: nowrap;
+}
+
+/* 翻译中 / 翻译失败提示（别人的消息还没拿到译文时） */
+.tr-pending {
+  margin: 2px 0 0 4px;
+  font-size: 12px;
+  color: #9aa0b0;
+}
+
+.tr-failed {
+  margin: 2px 0 0 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #b36400;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tr-failed:hover {
+  text-decoration: underline;
 }
 
 /* 断线提示横幅 */

@@ -260,7 +260,16 @@ export class RoomDurableObject implements DurableObject {
     await Promise.all(
       [...targetLangs].map(async (targetLang) => {
         const translation = await this.getTranslation(message, targetLang)
-        if (translation) this.sendTranslationToLang(targetLang, translation)
+        if (translation) {
+          this.sendToLang(targetLang, { type: "translation", translation })
+        } else {
+          // 阶段 8：整条链失败时明说，前端显示「翻译暂时不可用」而不是只剩原文
+          this.sendToLang(targetLang, {
+            type: "translation_failed",
+            messageId: message.id,
+            targetLang,
+          })
+        }
       }),
     )
   }
@@ -277,9 +286,16 @@ export class RoomDurableObject implements DurableObject {
       .slice(-MAX_BACKFILL)
     for (const { message } of missing) {
       const translation = await this.getTranslation(message, lang)
-      if (!translation) continue
       try {
-        this.sendTo(socket, { type: "translation", translation })
+        if (translation) {
+          this.sendTo(socket, { type: "translation", translation })
+        } else {
+          this.sendTo(socket, {
+            type: "translation_failed",
+            messageId: message.id,
+            targetLang: lang,
+          })
+        }
       } catch {
         return // 连接已断开，停止补译
       }
@@ -379,9 +395,9 @@ export class RoomDurableObject implements DurableObject {
     await Promise.all(keys.slice(MAX_REPORTS).map((key) => this.state.storage.delete(key)))
   }
 
-  /** 只把译文发给界面语言匹配的连接。 */
-  private sendTranslationToLang(targetLang: string, translation: MessageTranslation): void {
-    const payload = JSON.stringify({ type: "translation", translation } satisfies ServerEvent)
+  /** 只把译文/翻译失败信号发给界面语言匹配的连接。 */
+  private sendToLang(targetLang: string, event: ServerEvent): void {
+    const payload = JSON.stringify(event)
     for (const [socket, session] of this.sessions) {
       if (session.language.toLowerCase() !== targetLang) continue
       try {

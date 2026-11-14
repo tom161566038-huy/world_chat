@@ -1,134 +1,96 @@
 import { useEffect, useState } from "react"
 import { BUILTIN_ROOMS } from "../shared/rooms"
-import type { LanguageCode } from "../shared/types"
 import Chat from "./Chat"
-
-/** 第一版支持的界面语言，先列一小批，后续按需扩展。 */
-const LANGUAGES: Array<{ code: LanguageCode; label: string }> = [
-  { code: "zh", label: "中文" },
-  { code: "en", label: "English" },
-  { code: "ja", label: "日本語" },
-  { code: "es", label: "Español" },
-  { code: "fr", label: "Français" },
-]
+import Docs from "./Docs"
+import Landing, { type Profile } from "./Landing"
+import Rooms from "./Rooms"
+import { detectLanguage, htmlLangOf, roomMeta, t } from "./i18n"
+import { navigate, useRoute } from "./router"
 
 const PROFILE_KEY = "worldchat:profile"
-const ROOM_KEY = "worldchat:room"
 
-interface Profile {
-  displayName: string
-  language: LanguageCode
-}
-
-/** 刷新后恢复房间和身份，配合服务端历史消息，回到刚才的聊天现场。 */
-function loadStoredState(): { profile: Profile | null; roomId: string | null } {
+/** 刷新后恢复身份（房间改为跟随 URL，/r/<slug> 即现场）。 */
+function loadStoredProfile(): Profile | null {
   try {
     const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? "null") as Profile | null
-    const roomId = localStorage.getItem(ROOM_KEY)
     if (profile && typeof profile.displayName === "string" && profile.displayName.trim()) {
-      return { profile, roomId }
+      return profile
     }
   } catch {
     // 存储损坏就当没存过
   }
-  return { profile: null, roomId: null }
+  return null
 }
 
 export default function App() {
-  const stored = loadStoredState()
-  const [profile, setProfile] = useState<Profile | null>(stored.profile)
-  const [roomId, setRoomId] = useState<string | null>(
-    stored.profile ? stored.roomId : null,
-  )
-  const [displayName, setDisplayName] = useState(stored.profile?.displayName ?? "")
-  const [language, setLanguage] = useState<LanguageCode>(stored.profile?.language ?? "zh")
+  const route = useRoute()
+  const [profile, setProfile] = useState<Profile | null>(() => loadStoredProfile())
 
   useEffect(() => {
     if (profile) localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
   }, [profile])
 
+  // html lang 与页面标题跟随当前视图 + 语言
+  const uiLang = profile?.language ?? detectLanguage()
   useEffect(() => {
-    if (roomId) localStorage.setItem(ROOM_KEY, roomId)
-    else localStorage.removeItem(ROOM_KEY)
-  }, [roomId])
+    document.documentElement.lang = htmlLangOf(uiLang)
+  }, [uiLang])
+  useEffect(() => {
+    if (route.name === "room") {
+      const room = BUILTIN_ROOMS.find((r) => r.slug === route.slug)
+      document.title = room
+        ? `${roomMeta(uiLang, room.slug, room).title} · WorldChat`
+        : "WorldChat"
+    } else if (route.name === "privacy" || route.name === "terms") {
+      document.title = `${t(uiLang, route.name === "privacy" ? "privacyLink" : "termsLink")} · WorldChat`
+    } else {
+      document.title = "WorldChat"
+    }
+  }, [route, uiLang])
 
-  const room = roomId ? BUILTIN_ROOMS.find((r) => r.id === roomId) : undefined
+  if (route.name === "privacy") {
+    return <Docs kind="privacy" lang={uiLang} />
+  }
+  if (route.name === "terms") {
+    return <Docs kind="terms" lang={uiLang} />
+  }
 
-  if (profile && room) {
+  if (route.name === "room") {
+    const room = BUILTIN_ROOMS.find((r) => r.slug === route.slug)
+    if (!room) {
+      return (
+        <main className="setup">
+          <h1>{t(uiLang, "notFoundTitle")}</h1>
+          <p className="subtitle">{t(uiLang, "notFoundBody", { room: route.slug })}</p>
+          <button className="link" onClick={() => navigate("/")}>
+            {t(uiLang, "backToRooms")}
+          </button>
+        </main>
+      )
+    }
+    if (!profile) {
+      // 房间链接进来：先收集名称和语言，再进入该房间（停在原 URL）
+      return <Landing room={room} onSubmit={setProfile} />
+    }
     return (
       <Chat
-        roomId={room.id}
+        room={room}
         displayName={profile.displayName}
         language={profile.language}
-        onLeave={() => setRoomId(null)}
+        onLeave={() => navigate("/")}
       />
     )
   }
 
+  // 根路径：有身份看房间列表，没有先看落地页
   if (profile) {
     return (
-      <main className="setup">
-        <h1>WorldChat</h1>
-        <p className="subtitle">
-          你好，{profile.displayName}！挑个房间开聊吧。
-        </p>
-        <div className="rooms">
-          <h2>房间</h2>
-          <ul>
-            {BUILTIN_ROOMS.map((r) => (
-              <li key={r.id}>
-                <button className="room-item" onClick={() => setRoomId(r.id)}>
-                  <span className="room-title">{r.title}</span>
-                  <span className="room-topic">{r.topic}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button className="link" onClick={() => setProfile(null)}>
-            换个身份
-          </button>
-        </div>
-      </main>
+      <Rooms
+        profile={profile}
+        onEnter={(slug) => navigate(`/r/${encodeURIComponent(slug)}`)}
+        onResetProfile={() => setProfile(null)}
+      />
     )
   }
-
-  return (
-    <main className="setup">
-      <h1>WorldChat</h1>
-      <p className="subtitle">用自己的语言聊天，看到大家的语言。</p>
-
-      <form
-        className="entry"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (!displayName.trim()) return
-          setProfile({ displayName: displayName.trim(), language })
-        }}
-      >
-        <label>
-          显示名称
-          <input
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="给自己起个名字"
-            maxLength={20}
-            required
-          />
-        </label>
-
-        <label>
-          我的语言
-          <select value={language} onChange={(e) => setLanguage(e.target.value)}>
-            {LANGUAGES.map(({ code, label }) => (
-              <option key={code} value={code}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button type="submit">继续</button>
-      </form>
-    </main>
-  )
+  return <Landing onSubmit={setProfile} />
 }

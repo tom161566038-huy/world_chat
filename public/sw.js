@@ -33,11 +33,12 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return
 
   if (request.mode === "navigate") {
-    // 网络优先：在线时永远拿最新版本，同时刷新缓存
+    // 网络优先：在线时永远拿最新版本，同时刷新缓存。
+    // 只缓存 2xx 响应——错误状态码（如限流页、5xx）进缓存会在离线时被当应用壳回放。
     event.respondWith(
       fetch(request)
         .then((response) => {
-          cachePut(request, response)
+          if (response.ok) cachePut(request, response)
           return response
         })
         .catch(() =>

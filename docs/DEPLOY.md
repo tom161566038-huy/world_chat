@@ -73,6 +73,18 @@ Workers Paid 也不用。接入任何付费翻译 API 前必须先设预算上�
   付费项；`wrangler.toml` 里保持只有免费配置。
 - 日志排查用 `npx wrangler tail`（实时日志）；代码里已避免记录消息全文和密钥。
 
+## 可选：自定义域名（阶段 8 不执行）
+
+当前正式地址是 `https://world-chat.world-chat.workers.dev`，免费、够用；
+**本阶段不购买、不申请、不绑定任何自定义域名**，发布也不依赖它。
+以后想换成自己的域名时（域名本身需按年付费，Workers 侧绑定不额外收费）：
+
+1. 在 Cloudflare 仪表盘把域名接入 Cloudflare DNS（免费档即可）。
+2. Workers & Pages → world-chat → Settings → Domains & Routes →
+   Add → Custom Domain，填如 `chat.example.com`，按提示完成。
+3. 代码无需改动：前端与 WebSocket 都走同源，绑定后自动生效；
+   `index.html` 里 Open Graph 的 `og:url` 记得同步替换成新域名。
+
 ## 常见问题
 
 - `wrangler dev` 报找不到 `./dist`：先跑一次 `npm run build`（配置了静态资源后需要）。

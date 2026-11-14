@@ -4,7 +4,11 @@
     <meta charset="UTF-8" />
     <!-- viewport-fit=cover：PWA 全屏模式下内容延伸到刘海/圆角底下，配合 CSS 安全区留白 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>WorldChat</title>
+    <title>WorldChat — 全球实时翻译聊天室</title>
+    <meta
+      name="description"
+      content="用自己的语言聊天，大家看到的是他们自己的语言；每条消息都能查看原文。免费、免注册。"
+    />
 
     <!-- PWA：Android/桌面通过 manifest 安装 -->
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -17,6 +21,22 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="WorldChat" />
+
+    <!-- 分享到社交软件时的预览（阶段 8）；换自定义域名时记得同步 og:url -->
+    <meta property="og:title" content="WorldChat — 全球实时翻译聊天室" />
+    <meta
+      property="og:description"
+      content="用自己的语言聊天，大家看到的是他们自己的语言；每条消息都能查看原文。免费、免注册。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://world-chat.world-chat.workers.dev/" />
+    <meta property="og:image" content="https://world-chat.world-chat.workers.dev/icons/icon-512.png" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:locale:alternate" content="ja_JP" />
+    <meta property="og:locale:alternate" content="es_ES" />
+    <meta property="og:locale:alternate" content="fr_FR" />
+    <meta name="twitter:card" content="summary" />
   </head>
   <body>
     <div id="root"></div>

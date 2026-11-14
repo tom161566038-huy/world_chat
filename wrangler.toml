@@ -11,6 +11,9 @@ compatibility_date = "2026-11-10"
 # dist（日常前端开发继续用 `npm run dev` 的 vite 流程，不受影响）。
 [assets]
 directory = "./dist"
+# ASSETS 绑定（阶段 8）：Worker 里用它把 /r/<slug>、/privacy、/terms 等
+# 前端路由统一回 index.html（SPA 兜底），不影响静态资源优先匹配
+binding = "ASSETS"
 
 # Workers AI 免费额度（Free 计划每天 10,000 Neurons，无需绑卡/付费计划），
 # 用于 @cf/meta/m2m100-1.2b 翻译兜底：Google 免费入口被限流时落到它。
