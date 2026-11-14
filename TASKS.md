@@ -100,3 +100,15 @@
 - 第三项待复验：本机（国内网络）无法访问 `*.workers.dev`（DNS 污染 + SNI
   阻断），wrangler tail 日志流也连不上；线上验收只能由可访问网络完成，
   按 `docs/DEPLOY.md` 的 5 步清单重测，译文到达后勾选。
+- 修复三（版本 `de40c9c7-3df4-4374-96c2-51d0a67e8382`）：waitUntil 已在线上
+  但译文仍不到，复测确认两个免费接口在共享/云出站 IP 上都失败——
+  translate.googleapis.com gtx 返回 429 HTML，MyMemory 返回 429 额度用尽。
+  本次把默认 Provider 改成三棒链条：① clients5.google.com 的
+  dict-chrome-ex 入口（带浏览器 UA，gtx 已弃用）；② Workers AI
+  `@cf/meta/m2m100-1.2b`（wrangler.toml 增加 `[ai]` binding，Free 计划每天
+  10,000 Neurons 免费额度，不绑卡不开付费）；③ MyMemory 末端兜底，并把
+  「额度用尽」文案和 responseStatus≠200 显式当失败处理。AI binding 不吃
+  AbortSignal，用竞速超时防止本地/边缘悬死整条链。每一棒的失败都带
+  provider id + HTTP 状态码打进日志。本地回归：Google 出口超时、AI 远端
+  代理超时后自动落到 MyMemory，双语译文均正常到达；`wrangler dev --remote`
+  隧道在国内网络连不通，生产路径待可访问网络按 DEPLOY.md 清单复测。
