@@ -92,6 +92,25 @@ Workers Paid 也不用。接入任何付费翻译 API 前必须先设预算上�
 3. 更换身份：大厅点「更换身份」→ 重新填名字进房 → 之前自己发的消息不再
    显示为「我」（已是另一个访客）
 
+## 部署后验收（阶段 12 可运营）
+
+翻译统计与额度水位查看（密钥同 `.dev.vars` 的 `REPORTS_ADMIN_KEY`）：
+
+```
+curl -H "x-admin-key: <密钥>" https://world-chat.world-chat.workers.dev/admin/stats
+```
+
+- 返回：`today`（美国东部日期）、`timezone: America/New_York`、`days`
+  （最近 7 天按 provider 的 `{ok, fail}` 汇总，今日置顶）、`failures`
+  （最近 50 条失败摘要：时间、provider、简短原因，不含聊天原文）
+- 验收：跨语言聊几句 → `days` 里今日行出现对应 provider 的 `ok` 计数；
+  人为断网/限流后出现 `fail` 计数与摘要；不带密钥访问应 404、错密钥 401
+- 额度对照（日界都是美国东部时间零点，与上面统计口径一致，勿与北京时间
+  混用）：Workers 免费层每天 10 万次请求；Workers AI Free 每天 10,000
+  Neurons（glm-4.7-flash 与 m2m100 共用，超限当天报错停住、链条落到
+  下一棒，不会自动扣费）。`days.total` 即当日翻译调用次数，可粗估水位；
+  Cloudflare 没有免费只读的官方用量 API，故用自建计数，不接账号 token
+
 ## 免费层注意点
 
 - **Workers 免费层**：每天 10 万次请求（东部时间零点重置）；超限报错停住，不会自动扣费。

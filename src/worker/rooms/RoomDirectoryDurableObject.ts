@@ -10,7 +10,9 @@ import type { Room } from "../../shared/types"
  * - 房间列表：只返回未关闭的自建房间 + 全部房间的在房人数（内置房间由
  *   对应 Room DO 上报，目录只存数字，不持有连接）；
  * - 单房间查询：Worker 的 /ws 放行自建房间前先在这里核对存在与未关闭；
- * - 在房人数：Room DO 在会话数变化时 POST /occupancy。
+ * - 在房人数：Room DO 在会话数变化时 POST /occupancy；
+ * - 翻译统计（阶段 12）：各 Room DO 的 provider 成功/失败 POST /translate-stats，
+ *   按日（美国东部时间，与 Cloudflare 免费层重置一致）汇总，GET /stats 导出。
  *
  * 选型：不引入 D1。目录天然是全局单点小数据（上限 50 个活跃房间），
  * SQLite DO 一份存储就够，免额外绑定，也和消息存储的选型一致。
@@ -36,6 +38,27 @@ const CREATOR_ID_MAX_CHARS = 64
 const ROOM_PREFIX = "room:"
 const OCC_PREFIX = "occ:"
 const RATE_PREFIX = "rate:"
+
+/**
+ * 翻译统计（阶段 12）：
+ * - tstat:{YYYY-MM-DD}:{provider} → { ok, fail }，按日汇总；
+ * - tfail:{YYYY-MM-DD}:{时间戳左补零}:{id} → { at, provider, reason }，失败摘要。
+ * 日界用美国东部时间（America/New_York）——Cloudflare Workers 免费层按
+ * 美东零点重置，和额度对齐，避免与北京时间混用。
+ */
+const TSTAT_PREFIX = "tstat:"
+const TFAIL_PREFIX = "tfail:"
+
+/** 失败摘要滚动保留条数（跨日合计，新的顶掉旧的）。 */
+const MAX_FAILURE_RECORDS = 50
+
+/** stats 导出包含最近几天的汇总。 */
+const STATS_DAYS = 7
+
+/** 当前美国东部时间的日 key（YYYY-MM-DD，en-CA 格式恰好是这个形状）。 */
+function easternDateKey(now = Date.now()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(now)
+}
 
 const SLUG_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789"
 const SLUG_LENGTH = 6
@@ -77,6 +100,10 @@ export class RoomDirectoryDurableObject implements DurableObject {
     if (request.method === "POST" && url.pathname === "/create") return this.create(request)
     if (request.method === "GET" && url.pathname === "/list") return this.list()
     if (request.method === "POST" && url.pathname === "/occupancy") return this.occupancy(request)
+    if (request.method === "POST" && url.pathname === "/translate-stats") {
+      return this.recordTranslateStats(request)
+    }
+    if (request.method === "GET" && url.pathname === "/stats") return this.translateStats()
     const roomMatch = /^\/room\/([a-z0-9]+)$/.exec(url.pathname)
     if (request.method === "GET" && roomMatch) return this.getRoom(roomMatch[1] ?? "")
     return errorResponse("not_found", 404)
@@ -190,6 +217,96 @@ export class RoomDirectoryDurableObject implements DurableObject {
 
   private async validUserRoom(slug: string): Promise<boolean> {
     return (await this.state.storage.get(`${ROOM_PREFIX}${slug}`)) !== undefined
+  }
+
+  /**
+   * 翻译结果记账（阶段 12）：{ provider, ok, reason? }。只来自各 Room DO 的
+   * 内部上报（Worker 不对外转发这条路由）；provider 限长防灌键，reason 限长
+   * 且只存错误摘要（provider 抛错时本身不含消息原文）。
+   */
+  private async recordTranslateStats(request: Request): Promise<Response> {
+    let body: { provider?: string; ok?: boolean; reason?: string }
+    try {
+      body = JSON.parse(await request.text()) as typeof body
+    } catch {
+      return errorResponse("bad_request", 400)
+    }
+    const provider = (body.provider ?? "").trim().slice(0, 64)
+    if (!provider || typeof body.ok !== "boolean") return errorResponse("bad_request", 400)
+
+    const date = easternDateKey()
+    const key = `${TSTAT_PREFIX}${date}:${provider}`
+    const counters = (await this.state.storage.get<{ ok: number; fail: number }>(key)) ?? {
+      ok: 0,
+      fail: 0,
+    }
+    if (body.ok) counters.ok += 1
+    else counters.fail += 1
+    await this.state.storage.put(key, counters)
+
+    if (!body.ok) {
+      const at = Date.now()
+      const reason = (body.reason ?? "").slice(0, 120)
+      const failKey = `${TFAIL_PREFIX}${date}:${String(at).padStart(16, "0")}:${crypto.randomUUID()}`
+      await this.state.storage.put(failKey, { at, provider, reason })
+      await this.trimFailures()
+    }
+    return new Response(null, { status: 204 })
+  }
+
+  /** 失败摘要只留最近 MAX_FAILURE_RECORDS 条，新的顶掉旧的。 */
+  private async trimFailures(): Promise<void> {
+    const entries = await this.state.storage.list<{ at: number; provider: string; reason: string }>(
+      { prefix: TFAIL_PREFIX, reverse: true, limit: MAX_FAILURE_RECORDS + 1 },
+    )
+    const keys = [...entries.keys()]
+    if (keys.length <= MAX_FAILURE_RECORDS) return
+    await Promise.all(keys.slice(MAX_FAILURE_RECORDS).map((key) => this.state.storage.delete(key)))
+  }
+
+  /**
+   * 导出翻译统计（阶段 12）：最近 STATS_DAYS 天按 provider 的成功/失败汇总
+   * + 最近 MAX_FAILURE_RECORDS 条失败摘要（新的在前）。日界为美国东部时间。
+   * Workers 请求数没有免费官方用量 API，容量对照写在 DEPLOY.md，不硬接。
+   */
+  private async translateStats(): Promise<Response> {
+    const statEntries = await this.state.storage.list<{ ok: number; fail: number }>({
+      prefix: TSTAT_PREFIX,
+    })
+    // days: { "2026-11-15": { "google-clients5": { ok, fail }, … }, … }
+    const days: Record<string, Record<string, { ok: number; fail: number }>> = {}
+    for (const [key, counters] of statEntries) {
+      const rest = key.slice(TSTAT_PREFIX.length)
+      const date = rest.slice(0, rest.indexOf(":"))
+      const provider = rest.slice(rest.indexOf(":") + 1)
+      if (!date || !provider) continue
+      ;(days[date] ??= {})[provider] = counters
+    }
+    // 最近 STATS_DAYS 天（含今天，可能没数据——照列出来便于对照空档）
+    const today = easternDateKey()
+    const recentDates = new Set(
+      [...Array(STATS_DAYS).keys()].map((i) => easternDateKey(Date.now() - i * 86_400_000)),
+    )
+    const sortedDays = Object.keys(days)
+      .filter((date) => recentDates.has(date))
+      .sort()
+      .reverse()
+      .map((date) => ({
+        date,
+        providers: days[date] ?? {},
+        total: Object.values(days[date] ?? {}).reduce((sum, c) => sum + c.ok + c.fail, 0),
+      }))
+    // 今天还没有任何记录时也列一行空的，方便对照「当日还没流量」和「当日没失败」
+    if (!sortedDays.some((d) => d.date === today)) {
+      sortedDays.unshift({ date: today, providers: {}, total: 0 })
+    }
+    const failEntries = await this.state.storage.list<{
+      at: number
+      provider: string
+      reason: string
+    }>({ prefix: TFAIL_PREFIX, reverse: true, limit: MAX_FAILURE_RECORDS })
+    const failures = [...failEntries.values()]
+    return json({ today, timezone: "America/New_York", days: sortedDays, failures })
   }
 
   /** 删除已过期的自建房间记录（及其人数键），返回剩余活跃数。 */

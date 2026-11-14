@@ -137,7 +137,10 @@ export class RoomDurableObject implements DurableObject {
   constructor(state: DurableObjectState, env: RoomEnv) {
     this.state = state
     this.env = env
-    this.provider = createTranslateProvider(env)
+    // 阶段 12：每个 provider 的成功/失败在这里记账上报目录（主链条行为不变）
+    this.provider = createTranslateProvider(env, (provider, ok, reason) =>
+      this.recordTranslateResult(provider, ok, reason),
+    )
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -502,6 +505,27 @@ export class RoomDurableObject implements DurableObject {
 
   private trKey(messageId: string, targetLang: string): string {
     return `${TR_PREFIX}${messageId}:${targetLang}`
+  }
+
+  /**
+   * 翻译结果上报目录 DO（阶段 12）：provider id + 成败 + 简短原因。
+   * fire-and-forget，失败只打日志，绝不影响翻译本身。
+   */
+  private recordTranslateResult(provider: string, ok: boolean, reason?: string): void {
+    const stub = this.env.ROOM_DIRECTORY.get(this.env.ROOM_DIRECTORY.idFromName("directory"))
+    const body = JSON.stringify({ provider: provider.slice(0, 64), ok, ...(ok ? {} : { reason }) })
+    this.state.waitUntil(
+      stub
+        .fetch("https://directory/translate-stats", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body,
+        })
+        .then(
+          () => undefined,
+          (error) => console.error("[stats] 翻译结果上报失败", error),
+        ),
+    )
   }
 
   /**

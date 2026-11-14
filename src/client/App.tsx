@@ -108,6 +108,7 @@ function RoomRoute({
   }
   return (
     <Chat
+      key={room.id}
       room={room}
       displayName={profile.displayName}
       language={profile.language}

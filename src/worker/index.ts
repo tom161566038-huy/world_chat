@@ -101,6 +101,17 @@ export default {
       return directoryStub(env).fetch(`https://directory/room/${roomMatch[1] ?? ""}`)
     }
 
+    // 只读翻译统计（阶段 12）：鉴权与 /admin/reports 对齐，未配置即 404。
+    if (url.pathname === "/admin/stats" && request.method === "GET") {
+      if (!env.REPORTS_ADMIN_KEY) return new Response("Not Found", { status: 404 })
+      const provided =
+        request.headers.get("x-admin-key") ?? url.searchParams.get("key") ?? ""
+      if (provided !== env.REPORTS_ADMIN_KEY) {
+        return new Response("Unauthorized", { status: 401 })
+      }
+      return directoryStub(env).fetch("https://directory/stats")
+    }
+
     // 只读举报查看（阶段 10）：凭 REPORTS_ADMIN_KEY 访问，未配置即 404。
     // GET /admin/reports            → 内置房间 + 目录里仍活跃的自建房间
     // GET /admin/reports?room=slug  → 单房间（支持已从目录过期清理的自建房间）

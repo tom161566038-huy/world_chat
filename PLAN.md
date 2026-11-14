@@ -95,6 +95,8 @@
   简单举报查看（`/admin/reports` 只读入口，`REPORTS_ADMIN_KEY` secret 保护）。
 - 阶段 11 轻量留存（已完成）：稳定访客身份（localStorage visitorId 经
   校验升格为 userId）、断线重连按 seq 游标补拉错过的消息。
-- 阶段 12 可运营：翻译成功率与免费额度可见。
+- 阶段 12 可运营（已完成）：翻译按 provider 记成功/失败（美东日界汇总 +
+  失败摘要），`/admin/stats` 只读查看（复用 `REPORTS_ADMIN_KEY`）；
+  免费额度水位用自建计数做代理，不接需要付费 token 的用量 API。
 
-阶段 12 只在此登记计划，实现以 `TASKS.md` 对应阶段的勾选项为准。
+至此路线图 0–12 阶段全部完成；后续新能力另立计划再登记。

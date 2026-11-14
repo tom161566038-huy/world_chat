@@ -285,9 +285,36 @@
   mock 测试回归通过（阶段 10 脚本的 visitorId 样例同步改成合法 UUID）。
   本机国内网络无法访问 workers.dev，线上按 DEPLOY.md 清单待可访问网络复测。
 
-## 阶段 12：可运营（未开始，先登记计划）
+## 阶段 12：可运营（已完成）
 
-- [ ] 翻译成功率可见（按 provider 统计失败率）
-- [ ] 免费额度水位可见（Workers AI Neurons / Workers 请求数）
+- [x] 翻译成功率可见（按 provider 统计失败率）
+- [x] 免费额度水位可见（Workers AI Neurons / Workers 请求数）
 
 完成标准：不用翻日志就能看到翻译链路健康度与额度水位。
+
+落地说明（版本 `9b653f6f-66b2-479c-8ad2-e2666e1603cc`）：
+
+- 翻译记账：`createTranslateProvider` 增加可选记账回调，默认链条每棒包一层
+  `RecordingProvider`——成功/失败路径原样透传，只多调一次回调（provider id +
+  成败 + 简短原因，不含消息原文），主链条顺序与行为零改动。Room DO 构造时
+  挂回调，fire-and-forget POST 到目录 DO `/translate-stats`，失败只打日志。
+- 汇总（目录 DO，SQLite 存储，重部署不丢）：`tstat:{美东日期}:{provider}` →
+  { ok, fail } 按日累加；日界用美国东部时间（America/New_York），与
+  Cloudflare 免费层重置点对齐，避免与北京时间混用。失败摘要
+  `tfail:…` 滚动保留最近 50 条（时间、provider、≤120 字原因）。
+- 查看：`GET /admin/stats`（复用 `REPORTS_ADMIN_KEY`，鉴权与 `/admin/reports`
+  完全对齐：未配 secret 404、密钥错/缺 401）。返回最近 7 天按 provider 的
+  成功/失败汇总（今日置顶，无流量也列空行）+ 失败摘要。
+- 免费额度水位：用自建计数做代理（今日翻译调用次数，可分 provider 看
+  workers-ai 两棒）。Workers 免费 10 万请求/天（美东零点重置）、Workers AI
+  免费 10,000 Neurons/天（超限当天报错停住、不扣费）写进 DEPLOY.md 对照；
+  Cloudflare 没有免费只读的官方用量 API，不硬接、不写账号 token。
+- 顺手小修补（阶段 11 遗留）：App.tsx 渲染 Chat 加 `key={room.id}`，从
+  /r/A 切到 /r/B 时组件正确卸载重建，lastSeq 游标不再带到新房间。
+- 本地验证：typecheck 通过；mock 外部 fetch + mock DO state 驱动真实代码——
+  默认链第一棒 429 失败落 mymemory 成功时按 provider 分别记 fail/ok、整链
+  失败每棒各记一次、统计与失败摘要不含消息原文、目录校验（空 provider/
+  缺 ok/坏 JSON 均 400）、失败摘要灌 60 条只留最新 50、ET 时区与日期形状、
+  Worker 鉴权（未配 404 / header 与 query 错钥 401 / 对钥透传）全部通过；
+  阶段 9/10/11 mock 测试回归通过。本机国内网络无法访问 workers.dev，
+  线上按 DEPLOY.md 清单待可访问网络复测。

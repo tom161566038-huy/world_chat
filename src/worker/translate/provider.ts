@@ -344,10 +344,49 @@ class FallbackChainProvider implements TranslateProvider {
   }
 }
 
+/**
+ * 记账回调（阶段 12）：每个 provider 的成功/失败各调一次，只带 provider id
+ * 和简短原因（不含消息原文），供 Room DO 上报目录 DO 做成功率统计。
+ * 不改变链条的尝试顺序与失败切换行为。
+ */
+export type ProviderResultCallback = (
+  provider: string,
+  ok: boolean,
+  reason?: string,
+) => void
+
+/** 包一层记账：成功/失败路径原样透传，只多调一次回调。 */
+class RecordingProvider implements TranslateProvider {
+  readonly id: string
+
+  constructor(
+    private readonly inner: TranslateProvider,
+    private readonly onResult: ProviderResultCallback,
+  ) {
+    this.id = inner.id
+  }
+
+  async translate(request: TranslateRequest): Promise<TranslateResult> {
+    try {
+      const result = await this.inner.translate(request)
+      this.onResult(result.provider, true)
+      return result
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.onResult(this.inner.id, false, message.slice(0, 120))
+      throw error
+    }
+  }
+}
+
 /** 按环境变量挑选 Provider：配置了 LibreTranslate 地址就用自托管实例，否则用免密钥默认链。 */
-export function createTranslateProvider(env: TranslateEnv): TranslateProvider {
+export function createTranslateProvider(
+  env: TranslateEnv,
+  onResult?: ProviderResultCallback,
+): TranslateProvider {
   if (env.LIBRETRANSLATE_URL) {
-    return new LibreTranslateProvider(env.LIBRETRANSLATE_URL, env.LIBRETRANSLATE_KEY)
+    const libre = new LibreTranslateProvider(env.LIBRETRANSLATE_URL, env.LIBRETRANSLATE_KEY)
+    return onResult ? new RecordingProvider(libre, onResult) : libre
   }
   const chain: TranslateProvider[] = [new GoogleClients5Provider()]
   if (env.AI) {
@@ -355,7 +394,8 @@ export function createTranslateProvider(env: TranslateEnv): TranslateProvider {
     chain.push(new WorkersAiTranslateProvider(env.AI))
   }
   chain.push(new MyMemoryProvider())
-  return new FallbackChainProvider(chain)
+  const wrapped = onResult ? chain.map((p) => new RecordingProvider(p, onResult)) : chain
+  return new FallbackChainProvider(wrapped)
 }
 
 /** 目标语言与消息原语言相同时不需要翻译。语言码统一小写比较。 */
