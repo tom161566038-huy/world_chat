@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { BUILTIN_ROOMS } from "../shared/rooms"
 import type { Room } from "../shared/types"
-import { lookupRoom } from "./api"
+import { lookupRoom, resetVisitorId } from "./api"
 import Chat from "./Chat"
 import Docs from "./Docs"
 import Landing, { type Profile } from "./Landing"
@@ -160,7 +160,12 @@ export default function App() {
       <Rooms
         profile={profile}
         onEnter={(slug) => navigate(`/r/${encodeURIComponent(slug)}`)}
-        onResetProfile={() => setProfile(null)}
+        onResetProfile={() => {
+          // 更换身份（阶段 11）：展示档案和稳定访客 id 一起清，
+          // 下次进入重新生成——旧 id 不再算同一个访客
+          resetVisitorId()
+          setProfile(null)
+        }}
       />
     )
   }

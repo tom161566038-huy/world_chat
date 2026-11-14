@@ -166,6 +166,8 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
   const [attempt, setAttempt] = useState(0)
   const socketRef = useRef<WebSocket | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+  /** 已收到的最大消息 seq（阶段 11）：重连 join 带上它补拉断线期间错过的消息。 */
+  const lastSeqRef = useRef(-1)
 
   useEffect(() => {
     let disposed = false
@@ -175,13 +177,15 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
 
     socket.onopen = () => {
       setStatus("open")
-      // visitorId：浏览器本地持久，让服务端的发送/举报限流窗口跨连接生效
+      // visitorId：浏览器本地持久，服务端把它当稳定 userId（阶段 11）；
+      // lastSeq：重连时告诉服务端补拉这之后的消息，聊天现场不断
       const join: ClientEvent = {
         type: "join",
         roomId: room.id,
         displayName,
         language,
         visitorId: getVisitorId(),
+        ...(lastSeqRef.current >= 0 ? { lastSeq: lastSeqRef.current } : {}),
       }
       socket.send(JSON.stringify(join))
     }
@@ -196,8 +200,19 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
       if (event.type === "joined") {
         setMyUserId(event.userId)
       } else if (event.type === "history") {
-        // 加入时服务端回放的近期消息，刷新页面也能接上；已缓存的译文一并带回
-        setMessages(event.messages.map((item) => item.message))
+        // 服务端回放的消息（初次进入 = 近期历史，重连 = 补拉错过的）。
+        // 去重合并：重连时本地已有一部分，只 append 没见过的（按 id），
+        // 聊天现场保持连续、不重复插一遍。
+        setMessages((prev) => {
+          const known = new Set(prev.map((m) => m.id))
+          const fresh = event.messages
+            .filter((item) => !known.has(item.message.id))
+            .map((item) => item.message)
+          return fresh.length > 0 ? [...prev, ...fresh] : prev
+        })
+        for (const item of event.messages) {
+          if (item.seq > lastSeqRef.current) lastSeqRef.current = item.seq
+        }
         const cached = event.messages
           .map((item) => item.translation)
           .filter((t): t is MessageTranslation => t !== undefined)
@@ -209,7 +224,10 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
           })
         }
       } else if (event.type === "message") {
-        setMessages((prev) => [...prev, event.message])
+        if (event.seq > lastSeqRef.current) lastSeqRef.current = event.seq
+        setMessages((prev) =>
+          prev.some((m) => m.id === event.message.id) ? prev : [...prev, event.message],
+        )
       } else if (event.type === "translation") {
         setTranslations((prev) => ({
           ...prev,

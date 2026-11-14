@@ -16,6 +16,14 @@ export function getVisitorId(): string {
   return id
 }
 
+/**
+ * 「更换身份」时一并清掉访客 id（阶段 11）：下次调用 getVisitorId 会重新生成，
+ * 旧 id 不再算同一个访客（稳定身份与展示档案同生共死）。
+ */
+export function resetVisitorId(): void {
+  localStorage.removeItem(VISITOR_KEY)
+}
+
 /** 拉列表：内置 + 自建房间的在房人数都在 occupancy 里；失败返回 null（UI 提示重试）。 */
 export async function fetchRooms(): Promise<RoomsListResponse | null> {
   try {

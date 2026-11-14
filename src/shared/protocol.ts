@@ -9,10 +9,16 @@ export type ClientEvent =
       displayName: string
       language: LanguageCode
       /**
-       * 浏览器本地持久的访客 id（阶段 10）：仅用作发送/举报限流的跨连接键，
-       * 不参与消息归属；缺省时服务端退回按连接隔离。
+       * 浏览器本地持久的访客 id（阶段 10 引入、阶段 11 升格为稳定身份）：
+       * 校验合法后作为该访客的 userId（消息归属、presence、限流统一），
+       * 缺省或非法时服务端退回本连接的临时随机 id。
        */
       visitorId?: string
+      /**
+       * 重连补拉游标（阶段 11）：客户端已收到的最大消息 seq，
+       * 服务端下发 seq 大于它的消息；缺省时回退为「最近 N 条历史」。
+       */
+      lastSeq?: number
     }
   | { type: "leave"; roomId: string }
   | { type: "send"; roomId: string; text: string; sourceLang: LanguageCode }
@@ -20,10 +26,15 @@ export type ClientEvent =
 
 export type ServerEvent =
   | { type: "joined"; roomId: string; userId: string }
-  | { type: "message"; message: ChatMessage }
+  | { type: "message"; message: ChatMessage; seq: number }
   | {
       type: "history"
-      messages: Array<{ message: ChatMessage; translation?: MessageTranslation }>
+      messages: Array<{
+        message: ChatMessage
+        translation?: MessageTranslation
+        /** 消息序号（阶段 11）：客户端记下最大的作为重连补拉游标。 */
+        seq: number
+      }>
     }
   /** 译文在原文广播后异步送达：只发给需要该目标语言的连接。 */
   | { type: "translation"; translation: MessageTranslation }

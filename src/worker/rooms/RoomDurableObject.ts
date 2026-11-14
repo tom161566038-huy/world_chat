@@ -20,9 +20,8 @@ interface Session {
   /** 界面语言，译文按它定向投递。 */
   language: LanguageCode
   /**
-   * 限流键（阶段 10）：优先用客户端带来的持久 visitorId，
-   * 使发送/举报限流窗口跨连接（重连、刷新）仍然生效；
-   * 没带时退回每连接一个随机 id（与消息归属的 userId 分开）。
+   * 限流键（阶段 10）：与 userId 一致——稳定身份下 visitorId 即 userId，
+   * 临时身份下是本连接的随机 id，限流窗口仍跨连接（重连、刷新）生效。
    */
   rateKey: string
 }
@@ -89,8 +88,20 @@ export interface ReportRecord {
 /** 存储键前缀，序号左补零保证字典序即时间序。 */
 const MSG_PREFIX = "msg:"
 
+/**
+ * 稳定访客 id 的合法格式（阶段 11）：标准 UUID（crypto.randomUUID 生成）。
+ * 过长或任意字符串不接受，避免把脏数据写进消息归属。
+ */
+const VISITOR_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /** 翻译缓存键前缀：`tr:{messageId}:{targetLang}`，同一组合只调用一次接口。 */
 const TR_PREFIX = "tr:"
+
+/** 消息 + 它的房间内序号（阶段 11 补拉游标用）。 */
+interface MessageWithSeq {
+  message: ChatMessage
+  seq: number
+}
 
 /** 自建房间元数据键：{ closesAt }。内置房间不写这个键、不设 Alarm。 */
 const META_KEY = "room:meta"
@@ -225,19 +236,30 @@ export class RoomDurableObject implements DurableObject {
           socket.close()
           return
         }
+        // 阶段 11：稳定访客身份。visitorId 校验合法即作为 userId——
+        // 消息归属、presence、限流键统一，刷新/换标签页/短暂断线后仍是同一个人；
+        // 非法或缺省时退回本连接临时随机 id（旧行为）。
+        const visitorId = event.visitorId?.trim() ?? ""
+        const userId = VISITOR_ID_PATTERN.test(visitorId) ? visitorId : crypto.randomUUID()
         const session: Session = {
-          userId: crypto.randomUUID(),
+          userId,
           senderName: event.displayName.trim().slice(0, 20) || "无名氏",
           language: event.language,
-          rateKey: event.visitorId?.trim().slice(0, 64) || crypto.randomUUID(),
+          rateKey: userId,
         }
         this.sessions.set(socket, session)
         this.sendTo(socket, { type: "joined", roomId: event.roomId, userId: session.userId })
-        // 加入后回放近期消息，已缓存的译文直接带上；刷新页面也能看到历史
-        const messages = await this.recentMessages(MAX_HISTORY)
+        // 加入后回放消息：带 lastSeq 游标 = 重连补拉断线期间错过的；
+        // 不带 = 初次进入，回放最近 N 条历史。已缓存的译文一并带上。
+        const lastSeq = Number.isFinite(event.lastSeq) ? event.lastSeq : undefined
+        const messages =
+          lastSeq !== undefined && lastSeq >= 0
+            ? await this.messagesAfter(lastSeq, MAX_HISTORY)
+            : await this.recentMessages(MAX_HISTORY)
         const items = await Promise.all(
-          messages.map(async (message) => ({
+          messages.map(async ({ message, seq }) => ({
             message,
+            seq,
             translation: await this.cachedTranslation(message.id, session.language),
           })),
         )
@@ -306,8 +328,9 @@ export class RoomDurableObject implements DurableObject {
         }
         await this.state.storage.put(this.msgKey(seq), message)
         await this.trimOldMessages()
-        // 热路径：先广播原文；译文异步算好后只发给需要的人
-        this.broadcast({ type: "message", message })
+        // 热路径：先广播原文（带 seq，客户端记游标用于重连补拉）；
+        // 译文异步算好后只发给需要的人
+        this.broadcast({ type: "message", message, seq })
         this.state.waitUntil(this.fanOutTranslations(message))
         return
       }
@@ -552,14 +575,39 @@ export class RoomDurableObject implements DurableObject {
     return `${MSG_PREFIX}${String(seq).padStart(16, "0")}`
   }
 
-  /** 最近 limit 条消息，按时间正序返回。 */
-  private async recentMessages(limit: number): Promise<ChatMessage[]> {
+  /** 最近 limit 条消息，按时间正序返回（带 seq）。 */
+  private async recentMessages(limit: number): Promise<MessageWithSeq[]> {
     const entries = await this.state.storage.list<ChatMessage>({
       prefix: MSG_PREFIX,
       reverse: true,
       limit,
     })
-    return [...entries.values()].reverse()
+    return this.withSeq(entries).reverse()
+  }
+
+  /**
+   * seq 之后的消息（阶段 11 重连补拉）：从游标之后倒着取最多 limit 条
+   * （存储里最多也只有 MAX_HISTORY 条，正常短时断线远用不满），
+   * 再正序返回，保证接得上最新现场。
+   */
+  private async messagesAfter(seq: number, limit: number): Promise<MessageWithSeq[]> {
+    const entries = await this.state.storage.list<ChatMessage>({
+      prefix: MSG_PREFIX,
+      startAfter: this.msgKey(seq),
+      reverse: true,
+      limit,
+    })
+    return this.withSeq(entries).reverse()
+  }
+
+  /** 存储键（左补零的 seq）剥回数字，与消息配对。 */
+  private withSeq(entries: Map<string, ChatMessage>): MessageWithSeq[] {
+    const out: MessageWithSeq[] = []
+    for (const [key, message] of entries) {
+      const seq = Number(key.slice(MSG_PREFIX.length))
+      if (Number.isFinite(seq)) out.push({ message, seq })
+    }
+    return out
   }
 
   /** 超出上限的旧消息直接删掉，连同它的翻译缓存，控制存储体积。 */
