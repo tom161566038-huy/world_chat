@@ -89,6 +89,23 @@ export default {
       return env.ROOM.get(id).fetch(new Request(forwardUrl, request))
     }
 
+    // 边缘国家码（游客身份阶段）：只用 Cloudflare 请求自带的 country，
+    // 不接付费 GeoIP；空/XX/T1 等识别失败返回 null，客户端不清已有国家码。
+    // 原始 IP 不写入存储、日志或档案。
+    if (url.pathname === "/api/geo" && request.method === "GET") {
+      const cfCountry = request.cf?.country
+      const raw =
+        (typeof cfCountry === "string" ? cfCountry : "") ||
+        request.headers.get("cf-ipcountry") ||
+        ""
+      const normalized = raw.trim().toUpperCase()
+      const country =
+        /^[A-Z]{2}$/.test(normalized) && normalized !== "XX" && normalized !== "T1"
+          ? normalized
+          : null
+      return Response.json({ country })
+    }
+
     // 房间目录 API（阶段 9）：同源 HTTP，创建限流在目录 DO 里做
     if (url.pathname === "/api/rooms" && request.method === "POST") {
       return directoryStub(env).fetch("https://directory/create", request)

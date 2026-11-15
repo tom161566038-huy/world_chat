@@ -2,10 +2,44 @@
 
 export type LanguageCode = string
 
-export interface UserProfile {
-  id: string
-  displayName: string
+/**
+ * 本地身份档案（游客身份阶段）：存浏览器 localStorage，不上服务器。
+ * - guestSuffix：由 visitorId 稳定派生的 4 位短号，同一身份不变；
+ *   未自定义昵称时显示名 = 本地化「游客」前缀 + 短号，切语言只换前缀。
+ * - 老档案只有 displayName：加载时迁移为 nickname，不改叫游客名。
+ */
+export interface Profile {
   language: LanguageCode
+  guestSuffix: string
+  /** 自定义昵称；空/缺省时用当前语言的游客名。 */
+  nickname?: string
+  /** ISO 3166-1 alpha-2 国家码（Cloudflare 边缘推断，客户端拉 /api/geo 写入）。 */
+  countryCode?: string
+  /** 头像：data: 图片 URL（已压缩）或预设色 "#rrggbb"；缺省由 visitorId 稳定生成色块。 */
+  avatar?: string
+  /** 性别码（male/female/other/private），展示时按观看者语言本地化。 */
+  gender?: string
+  /** 13–120 的整数，选填。 */
+  age?: number
+  job?: string
+  hobbies?: string
+  bio?: string
+}
+
+/**
+ * 广播给同房间其他人的紧凑档案（按 userId 存一份，不嵌进每条消息）：
+ * 历史消息用发送者的档案来显示头像和国旗。
+ */
+export interface RoomMemberProfile {
+  userId: string
+  displayName: string
+  countryCode?: string
+  avatar?: string
+  gender?: string
+  age?: number
+  job?: string
+  hobbies?: string
+  bio?: string
 }
 
 export interface Room {

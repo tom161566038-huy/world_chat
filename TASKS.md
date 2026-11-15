@@ -318,3 +318,35 @@
   Worker 鉴权（未配 404 / header 与 query 错钥 401 / 对钥透传）全部通过；
   阶段 9/10/11 mock 测试回归通过。本机国内网络无法访问 workers.dev，
   线上按 DEPLOY.md 清单待可访问网络复测。
+
+## 阶段 13：游客身份、国旗、个人资料设置（2026-11-15，已完成）
+
+- [x] 一进来就是游客：打开站点/房间链接自动建档案，不必先起名；落地页昵称改可选，
+      /r/<slug> 无档案时自动以游客身份进入（房间关闭/不存在的判断仍在前面）
+- [x] 游客名 = 本地化前缀 + visitorId 稳定派生的 4 位短号（zh 游客4821 / en
+      Guest 4821 / ja ゲスト4821 / es Invitado 4821 / fr Invité 4821）；
+      切语言只换前缀不改短号；老用户的 displayName 迁移为 nickname 不改成游客名；
+      「换个身份」重生成 visitorId、新游客名并清空头像与资料字段
+- [x] 国旗：GET /api/geo 用 Cloudflare 边缘 country（XX/T1/无效 → null 不清已有值），
+      不接付费 GeoIP、不存原始 IP；emoji 旗显示在发送者名/房间列表问候/资料卡，
+      识别不到不显示；隐私说明五语言补「国家推断 + 可选资料」一段
+- [x] 设置：房间列表与聊天顶栏随时可开；头像（预设色板 + 上传压缩 192px/约100KB）、
+      昵称（≤20 字，清空回游客名）、性别（male/female/other/private 码）、
+      年龄（13–120 整数，<13 不给保存）、工作/喜好/简介（剥 HTML、限长）全选填
+- [x] 档案分发：join 带 profile（清洗后落 `profile:{userId}`，滚动保留 100 份，
+      头像上限 14 万字符）；新事件 member_profile / member_profiles（历史发送者
+      + 在房人员）；改资料发 profile_update 立即广播；历史消息用发送者档案显示
+      头像国旗；点头像/名字开轻量资料卡（只显示已填字段）；类型在 src/shared
+      前后端共用，旧字段全部兼容
+- [x] 全部新文案 i18n ×5；视觉沿用现有设计令牌与统一顶栏/select 规则；
+      翻译主链条（src/worker/translate/）零改动
+
+落地说明：
+
+- 显示名不拼国旗（避免服务端 20 字截断），国旗/头像渲染时叠加；
+  Profile 类型挪进 src/shared/types.ts（原 client/Landing 的 Profile 删除）。
+- 本地验证：typecheck/build 通过；mock DO + 假 WebSocket 驱动真实
+  RoomDurableObject——join 档案清洗（trim/限长/国家码大写/性别码白名单/
+  剥 HTML/非法头像与 age<13 拒收）、member_profile 广播、member_profiles
+  回放、profile_update 后消息用新昵称、档案灌 150 份只留 100——全部通过；
+  真实 Worker fetch 验证 /api/geo（无 cf→null、JP→JP、XX→null、header fr→FR）。

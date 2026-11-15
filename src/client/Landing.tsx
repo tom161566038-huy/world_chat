@@ -1,27 +1,30 @@
 /**
- * 落地页 + 入口表单（阶段 8）：
- * 先说清「这是什么、怎么用」，再收集显示名称与界面语言。
+ * 落地页 + 入口表单（游客身份阶段）：
+ * 介绍产品 + 语言选择；昵称完全可选——不填就直接用当前语言的游客名进入。
  * 从房间链接进来时带上房间上下文（room），提示将进入哪个房间。
  */
 import { useEffect, useState } from "react"
 import type { LanguageCode, Room } from "../shared/types"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { detectLanguage, htmlLangOf, LANGUAGES, roomMeta, t } from "./i18n"
+import { guestName, guestSuffixOf } from "./profile"
+import { getVisitorId } from "./api"
 
-export interface Profile {
-  displayName: string
+export interface LandingResult {
   language: LanguageCode
+  /** 选填昵称；空 = 游客名（前缀随语言、短号随身份）。 */
+  nickname?: string
 }
 
 interface LandingProps {
   /** 从 /r/<slug> 进入时带上房间，表单提示会说明进哪个房间。 */
   room?: Room
-  /** 提交（起名 + 选语言）后进入下一步。 */
-  onSubmit: (profile: Profile) => void
+  /** 继续（选语言，昵称可选）后建立档案进入下一步。 */
+  onSubmit: (result: LandingResult) => void
 }
 
 export default function Landing({ room, onSubmit }: LandingProps) {
-  const [displayName, setDisplayName] = useState("")
+  const [nickname, setNickname] = useState("")
   const [language, setLanguage] = useState<LanguageCode>(detectLanguage())
 
   // 落地页还没存档案，html lang 跟着当前选择走
@@ -30,6 +33,8 @@ export default function Landing({ room, onSubmit }: LandingProps) {
   }, [language])
 
   const roomTitle = room ? roomMeta(language, room.slug, room).title : undefined
+  // 游客名预览随语言实时变化（短号跟身份走，不会变）
+  const guestPreview = guestName(language, guestSuffixOf(getVisitorId()))
 
   return (
     <main className="setup landing">
@@ -54,8 +59,10 @@ export default function Landing({ room, onSubmit }: LandingProps) {
         className="entry"
         onSubmit={(e) => {
           e.preventDefault()
-          if (!displayName.trim()) return
-          onSubmit({ displayName: displayName.trim(), language })
+          onSubmit({
+            language,
+            nickname: nickname.trim() ? nickname.trim().slice(0, 20) : undefined,
+          })
         }}
       >
         {roomTitle && (
@@ -64,11 +71,10 @@ export default function Landing({ room, onSubmit }: LandingProps) {
         <label>
           {t(language, "nameLabel")}
           <input
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder={t(language, "namePlaceholder")}
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder={guestPreview}
             maxLength={20}
-            required
           />
         </label>
         <label>

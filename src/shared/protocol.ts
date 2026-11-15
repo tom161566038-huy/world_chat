@@ -1,6 +1,21 @@
 /** WebSocket 协议。阶段 2 实现时按此扩展，保持向后兼容的字段名。 */
 
-import type { ChatMessage, LanguageCode, MessageTranslation } from "./types"
+import type { ChatMessage, LanguageCode, MessageTranslation, RoomMemberProfile } from "./types"
+
+/**
+ * 随 join / profile 更新上报的档案载荷（游客身份阶段）：全部选填字段，
+ * 服务端清洗后按 userId 存一份 RoomMemberProfile 并广播，不嵌进消息。
+ */
+export interface ProfilePayload {
+  displayName: string
+  countryCode?: string
+  avatar?: string
+  gender?: string
+  age?: number
+  job?: string
+  hobbies?: string
+  bio?: string
+}
 
 export type ClientEvent =
   | {
@@ -8,6 +23,11 @@ export type ClientEvent =
       roomId: string
       displayName: string
       language: LanguageCode
+      /**
+       * 加入时一并上报的档案（游客身份阶段）：头像/国旗/资料卡数据源。
+       * 选填，旧客户端不带也能加入（退回纯 senderName 行为）。
+       */
+      profile?: ProfilePayload
       /**
        * 浏览器本地持久的访客 id（阶段 10 引入、阶段 11 升格为稳定身份）：
        * 校验合法后作为该访客的 userId（消息归属、presence、限流统一），
@@ -23,6 +43,11 @@ export type ClientEvent =
   | { type: "leave"; roomId: string }
   | { type: "send"; roomId: string; text: string; sourceLang: LanguageCode }
   | { type: "report"; messageId?: string; userId?: string; reason: string }
+  /**
+   * 会话中更新档案（游客身份阶段）：改昵称/头像/国旗/资料字段后尽快广播
+   * 给同房间的人；服务端清洗、落存储并广播 member_profile。
+   */
+  | { type: "profile_update"; profile: ProfilePayload }
 
 export type ServerEvent =
   | { type: "joined"; roomId: string; userId: string }
@@ -50,5 +75,15 @@ export type ServerEvent =
   | { type: "presence"; count: number }
   /** 自建房间到点关闭（阶段 9）：收到后不能再发言，服务端随后会断开连接。 */
   | { type: "room_closed" }
+  /**
+   * 某人的档案更新/加入（游客身份阶段）：广播给房内所有人；
+   * 前端按 userId 缓存，用于消息头像/国旗与资料卡。
+   */
+  | { type: "member_profile"; member: RoomMemberProfile }
+  /**
+   * 加入时的档案批量回放：历史消息的发送者 + 当前在房的人，
+   * 只发给刚加入的这条连接（补齐历史消息的头像与国旗）。
+   */
+  | { type: "member_profiles"; members: RoomMemberProfile[] }
   | { type: "error"; code: string; message: string }
   | { type: "reported"; ok: true }

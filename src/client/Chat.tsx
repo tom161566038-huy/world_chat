@@ -1,20 +1,31 @@
 import { useEffect, useRef, useState } from "react"
 import type { ClientEvent, ServerEvent } from "../shared/protocol"
-import type { ChatMessage, LanguageCode, MessageTranslation, Room } from "../shared/types"
+import type {
+  ChatMessage,
+  LanguageCode,
+  MessageTranslation,
+  Profile,
+  Room,
+  RoomMemberProfile,
+} from "../shared/types"
+import Avatar from "./Avatar"
+import ProfileCard from "./ProfileCard"
 import { getVisitorId } from "./api"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, sameLanguage, serverErrorMessage, t } from "./i18n"
+import { displayNameOf, flagEmoji, memberOf, profilePayloadOf } from "./profile"
 import { roomLink } from "./router"
 import { copyText } from "./share"
 import { wsUrl } from "./wsUrl"
 
 interface ChatProps {
   room: Room
-  displayName: string
-  language: LanguageCode
+  profile: Profile
   onLeave: () => void
   /** 顶部切换语言：上层写回 profile，language prop 变化会触发下方重连。 */
   onLanguageChange: (language: LanguageCode) => void
+  /** 打开设置面板（游客身份阶段）：顶栏随时可进。 */
+  onOpenSettings: () => void
 }
 
 type ConnectionState = "connecting" | "open" | "closed"
@@ -28,6 +39,37 @@ type ReportUiState = "hidden" | "form" | "sending" | "done" | "failed" | "rate_l
 /** 举报提交结果：成功 / 被服务端拒绝 / 举报太频繁 / 连接问题或超时。 */
 type ReportResult = "ok" | "bad" | "rate_limited" | "network"
 
+/** 发送者一行：头像 + 名字 + 国旗，点开资料卡（游客身份阶段）。 */
+function SenderLine({
+  name,
+  member,
+  senderId,
+  onOpenCard,
+}: {
+  name: string
+  member?: RoomMemberProfile
+  senderId: string
+  onOpenCard: (userId: string) => void
+}) {
+  const flag = flagEmoji(member?.countryCode)
+  return (
+    <span className="sender-line">
+      <Avatar
+        avatar={member?.avatar}
+        seed={senderId}
+        label={name}
+        size={20}
+        onClick={() => onOpenCard(senderId)}
+        title={name}
+      />
+      <button type="button" className="sender sender-btn" onClick={() => onOpenCard(senderId)}>
+        {name}
+      </button>
+      {flag ? <span className="flag">{flag}</span> : null}
+    </span>
+  )
+}
+
 /** 单条消息：自己发的永远看原文；别人的消息优先显示成自己语言的译文，可展开原文。 */
 function MessageRow({
   message,
@@ -35,6 +77,8 @@ function MessageRow({
   translation,
   translationFailed,
   myLanguage,
+  member,
+  onOpenCard,
   onReport,
 }: {
   message: ChatMessage
@@ -43,6 +87,9 @@ function MessageRow({
   /** 服务端明确通知过「这条译不出来」，UI 给出说明而不是默默显示原文。 */
   translationFailed: boolean
   myLanguage: LanguageCode
+  /** 发送者档案（头像/国旗/资料卡数据源）；旧消息查不到就没有。 */
+  member?: RoomMemberProfile
+  onOpenCard: (userId: string) => void
   /** 提交举报，返回结果状态；失败时表单保留已填的理由便于重试。 */
   onReport: (reason: string) => Promise<ReportResult>
 }) {
@@ -80,7 +127,12 @@ function MessageRow({
 
   return (
     <div className={mine ? "mine" : "others"}>
-      <span className="sender">{message.senderName}</span>
+      <SenderLine
+        name={message.senderName}
+        member={member}
+        senderId={message.senderId}
+        onOpenCard={onOpenCard}
+      />
       {translated ? (
         <>
           <p className="bubble">{translation.text}</p>
@@ -148,7 +200,16 @@ function MessageRow({
   )
 }
 
-export default function Chat({ room, displayName, language, onLeave, onLanguageChange }: ChatProps) {
+export default function Chat({
+  room,
+  profile,
+  onLeave,
+  onLanguageChange,
+  onOpenSettings,
+}: ChatProps) {
+  const language = profile.language
+  const displayName = displayNameOf(profile)
+  const profilePayload = profilePayloadOf(profile, displayName)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   /** messageId -> 译文，原文广播后服务端会异步推送过来。 */
   const [translations, setTranslations] = useState<Record<string, MessageTranslation>>({})
@@ -171,6 +232,12 @@ export default function Chat({ room, displayName, language, onLeave, onLanguageC
   const listRef = useRef<HTMLDivElement | null>(null)
   /** 已收到的最大消息 seq（阶段 11）：重连 join 带上它补拉断线期间错过的消息。 */
   const lastSeqRef = useRef(-1)
+  /** 房间成员档案（游客身份阶段）：userId -> 档案，头像/国旗/资料卡的数据源。 */
+  const [members, setMembers] = useState<Record<string, RoomMemberProfile>>({})
+  /** 点开的资料卡对应的 userId；null = 关着。 */
+  const [cardUserId, setCardUserId] = useState<string | null>(null)
+  /** 最近一次上报给服务端的档案（JSON）：避免 join 后重复发 profile_update。 */
+  const lastSentProfileRef = useRef<string | null>(null)
 
   // 切换语言（界面小修复）：清掉旧语言的译文缓存并把游标重置为 -1，
   // 随后 socket effect（依赖 language）重连时 join 不带 lastSeq，
@@ -182,25 +249,32 @@ export default function Chat({ room, displayName, language, onLeave, onLanguageC
     lastSeqRef.current = -1
   }, [language])
 
+  // 未自定义昵称的游客：切语言只换前缀、短号不变 → 显示名变化触发重连，
+  // join 会带上新语言前缀的游客名（displayNameOf 在每次渲染时重算）。
   useEffect(() => {
     let disposed = false
     let retryTimer: number | undefined
     const socket = new WebSocket(wsUrl(room.id))
     socketRef.current = socket
+    const joinPayloadJson = JSON.stringify(profilePayload)
 
     socket.onopen = () => {
       setStatus("open")
       // visitorId：浏览器本地持久，服务端把它当稳定 userId（阶段 11）；
-      // lastSeq：重连时告诉服务端补拉这之后的消息，聊天现场不断
+      // lastSeq：重连时告诉服务端补拉这之后的消息，聊天现场不断；
+      // profile：头像/国旗/资料卡（游客身份阶段）
       const join: ClientEvent = {
         type: "join",
         roomId: room.id,
         displayName,
         language,
         visitorId: getVisitorId(),
+        profile: profilePayload,
         ...(lastSeqRef.current >= 0 ? { lastSeq: lastSeqRef.current } : {}),
       }
       socket.send(JSON.stringify(join))
+      // join 已带最新档案，避免 profile_update 效果重复上报
+      lastSentProfileRef.current = joinPayloadJson
     }
 
     socket.onmessage = (e: MessageEvent) => {
@@ -259,6 +333,16 @@ export default function Chat({ room, displayName, language, onLeave, onLanguageC
         }
       } else if (event.type === "presence") {
         setOccupantCount(event.count)
+      } else if (event.type === "member_profile") {
+        // 房里有人改了资料/新人进来：更新本地缓存（自己的回执也走这里）
+        setMembers((prev) => ({ ...prev, [event.member.userId]: event.member }))
+      } else if (event.type === "member_profiles") {
+        // 加入时的批量回放：历史消息发送者 + 当前在房的人
+        setMembers((prev) => {
+          const next = { ...prev }
+          for (const member of event.members) next[member.userId] = member
+          return next
+        })
       } else if (event.type === "room_closed") {
         roomClosedRef.current = true
         setRoomClosed(true)
@@ -284,6 +368,18 @@ export default function Chat({ room, displayName, language, onLeave, onLanguageC
       socketRef.current = null
     }
   }, [room.id, displayName, language, attempt])
+
+  // 设置里改了资料（且没引起重连，例如只改了简介）：尽快广播给同房间的人。
+  // join 时带过的档案记在 lastSentProfileRef，避免重复上报。
+  const profilePayloadJson = JSON.stringify(profilePayload)
+  useEffect(() => {
+    if (!myUserId || status !== "open") return
+    if (lastSentProfileRef.current === profilePayloadJson) return
+    lastSentProfileRef.current = profilePayloadJson
+    socketRef.current?.send(
+      JSON.stringify({ type: "profile_update", profile: profilePayload } satisfies ClientEvent),
+    )
+  }, [profilePayloadJson, profilePayload, myUserId, status])
 
   // 新消息时滚到底部
   useEffect(() => {
@@ -347,7 +443,14 @@ export default function Chat({ room, displayName, language, onLeave, onLanguageC
     })
   }
 
+  /** 资料卡数据：优先房内档案缓存；自己退回本地档案。 */
+  function memberForCard(userId: string): RoomMemberProfile | null {
+    if (userId === myUserId) return members[userId] ?? memberOf(profile, userId)
+    return members[userId] ?? null
+  }
+
   const roomTitle = roomMeta(language, room.slug, room).title
+  const cardMember = cardUserId !== null ? memberForCard(cardUserId) : null
   const connLabel =
     status === "open"
       ? t(language, "connected")
@@ -371,6 +474,9 @@ export default function Chat({ room, displayName, language, onLeave, onLanguageC
         </span>
         <span className="header-right">
           <LanguageSwitcher language={language} onChange={onLanguageChange} />
+          <button className="toggle invite" onClick={onOpenSettings}>
+            {t(language, "settingsBtn")}
+          </button>
           <button className="toggle invite" onClick={copyInvite}>
             {inviteCopied ? t(language, "inviteCopied") : t(language, "inviteBtn")}
           </button>
@@ -412,6 +518,8 @@ export default function Chat({ room, displayName, language, onLeave, onLanguageC
             translation={translations[msg.id]}
             translationFailed={failedTranslations.has(msg.id)}
             myLanguage={language}
+            member={members[msg.senderId]}
+            onOpenCard={setCardUserId}
             onReport={(reason) => reportMessage(msg.id, reason)}
           />
         ))}
@@ -421,6 +529,14 @@ export default function Chat({ room, displayName, language, onLeave, onLanguageC
         <div className="error-toast" role="alert">
           {serverError}
         </div>
+      )}
+
+      {cardMember && (
+        <ProfileCard
+          member={cardMember}
+          language={language}
+          onClose={() => setCardUserId(null)}
+        />
       )}
 
       <form

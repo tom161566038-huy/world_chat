@@ -1,28 +1,15 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { BUILTIN_ROOMS } from "../shared/rooms"
-import type { Room } from "../shared/types"
-import { lookupRoom, resetVisitorId } from "./api"
+import type { Profile, Room } from "../shared/types"
+import { fetchCountryCode, lookupRoom, resetVisitorId } from "./api"
 import Chat from "./Chat"
 import Docs from "./Docs"
-import Landing, { type Profile } from "./Landing"
+import Landing from "./Landing"
 import Rooms from "./Rooms"
+import Settings from "./Settings"
 import { detectLanguage, htmlLangOf, roomMeta, t } from "./i18n"
+import { clearProfile, createGuestProfile, loadProfile, saveProfile } from "./profile"
 import { navigate, useRoute } from "./router"
-
-const PROFILE_KEY = "worldchat:profile"
-
-/** 刷新后恢复身份（房间改为跟随 URL，/r/<slug> 即现场）。 */
-function loadStoredProfile(): Profile | null {
-  try {
-    const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? "null") as Profile | null
-    if (profile && typeof profile.displayName === "string" && profile.displayName.trim()) {
-      return profile
-    }
-  } catch {
-    // 存储损坏就当没存过
-  }
-  return null
-}
 
 function NoticePage({ title, body, backLabel }: { title: string; body: string; backLabel: string }) {
   return (
@@ -38,16 +25,19 @@ function NoticePage({ title, body, backLabel }: { title: string; body: string; b
 
 /**
  * /r/<slug> 的房间解析（阶段 9）：内置房间直接进；自建房间先查目录，
- * 关闭的房间给明确「已关闭」页，不存在的按旧逻辑提示；需要身份时先收身份。
+ * 关闭的房间给明确「已关闭」页，不存在的按旧逻辑提示。
+ * 游客身份阶段：没有档案时自动以游客身份进入该房间（房间仍要先解析是否关闭）。
  */
 function RoomRoute({
   slug,
   profile,
   onProfile,
+  onOpenSettings,
 }: {
   slug: string
   profile: Profile | null
   onProfile: (profile: Profile) => void
+  onOpenSettings: () => void
 }) {
   const uiLang = profile?.language ?? detectLanguage()
   const builtin = BUILTIN_ROOMS.find((r) => r.slug === slug)
@@ -75,6 +65,15 @@ function RoomRoute({
     }
   }, [slug, builtin])
 
+  const room = builtin ?? userRoom
+  // 房间存在且已解析，但本地还没有档案：自动建游客档案进入（不必先起名）。
+  // 房间关闭/不存在的判断仍在前面，不会带人进错房间。
+  useEffect(() => {
+    if (lookupState === "ok" && room && !profile) {
+      onProfile(createGuestProfile(uiLang))
+    }
+  }, [lookupState, room, profile, uiLang, onProfile])
+
   if (lookupState === "loading") {
     return (
       <main className="setup">
@@ -100,31 +99,46 @@ function RoomRoute({
       />
     )
   }
-
-  const room = builtin ?? userRoom
-  if (!room || !profile) {
-    // 房间链接进来：先收集名称和语言，再进入该房间（停在原 URL）
-    return room ? <Landing room={room} onSubmit={onProfile} /> : null
-  }
+  if (!room || !profile) return null
   return (
     <Chat
       key={room.id}
       room={room}
-      displayName={profile.displayName}
-      language={profile.language}
+      profile={profile}
       onLanguageChange={(language) => onProfile({ ...profile, language })}
       onLeave={() => navigate("/")}
+      onOpenSettings={onOpenSettings}
     />
   )
 }
 
 export default function App() {
   const route = useRoute()
-  const [profile, setProfile] = useState<Profile | null>(() => loadStoredProfile())
+  const [profile, setProfile] = useState<Profile | null>(() => loadProfile())
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  /** 国家码只在每次拿到档案后拉一次；识别失败不清已有国家码。 */
+  const geoFetched = useRef(false)
 
   useEffect(() => {
-    if (profile) localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
-    else localStorage.removeItem(PROFILE_KEY)
+    if (profile) saveProfile(profile)
+    else clearProfile()
+  }, [profile])
+
+  // 边缘国家码：有档案后拉一次 /api/geo，有效才写入（无效不动已有值）。
+  // 换身份清空档案后允许重拉一次。
+  useEffect(() => {
+    if (!profile) {
+      geoFetched.current = false
+      return
+    }
+    if (geoFetched.current) return
+    geoFetched.current = true
+    void fetchCountryCode().then((country) => {
+      if (!country) return
+      setProfile((prev) =>
+        prev && prev.countryCode !== country ? { ...prev, countryCode: country } : prev,
+      )
+    })
   }, [profile])
 
   // html lang 与页面标题跟随当前视图 + 语言
@@ -153,24 +167,57 @@ export default function App() {
   }
 
   if (route.name === "room") {
-    return <RoomRoute slug={route.slug} profile={profile} onProfile={setProfile} />
-  }
-
-  // 根路径：有身份看房间列表，没有先看落地页
-  if (profile) {
     return (
-      <Rooms
-        profile={profile}
-        onEnter={(slug) => navigate(`/r/${encodeURIComponent(slug)}`)}
-        onLanguageChange={(language) => setProfile({ ...profile, language })}
-        onResetProfile={() => {
-          // 更换身份（阶段 11）：展示档案和稳定访客 id 一起清，
-          // 下次进入重新生成——旧 id 不再算同一个访客
-          resetVisitorId()
-          setProfile(null)
-        }}
-      />
+      <>
+        <RoomRoute
+          slug={route.slug}
+          profile={profile}
+          onProfile={setProfile}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+        {settingsOpen && profile && (
+          <Settings
+            profile={profile}
+            onSave={setProfile}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
+      </>
     )
   }
-  return <Landing onSubmit={setProfile} />
+
+  // 根路径：有身份看房间列表，没有先看落地页（昵称可选，不填就是游客）
+  if (profile) {
+    return (
+      <>
+        <Rooms
+          profile={profile}
+          onEnter={(slug) => navigate(`/r/${encodeURIComponent(slug)}`)}
+          onLanguageChange={(language) => setProfile({ ...profile, language })}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onResetProfile={() => {
+            // 更换身份（游客身份阶段）：档案 + 稳定访客 id 一起清，
+            // 头像与资料字段随档案清空，下次进入重新生成新游客名
+            resetVisitorId()
+            clearProfile()
+            setProfile(null)
+          }}
+        />
+        {settingsOpen && (
+          <Settings
+            profile={profile}
+            onSave={setProfile}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
+      </>
+    )
+  }
+  return (
+    <Landing
+      onSubmit={(result) =>
+        setProfile({ ...createGuestProfile(result.language), nickname: result.nickname })
+      }
+    />
+  )
 }

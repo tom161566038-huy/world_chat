@@ -1,6 +1,11 @@
-import type { ClientEvent, ServerEvent } from "../../shared/protocol"
+import type { ClientEvent, ProfilePayload, ServerEvent } from "../../shared/protocol"
 import type { OccupancyUpdate } from "../../shared/roomDirectory"
-import type { ChatMessage, LanguageCode, MessageTranslation } from "../../shared/types"
+import type {
+  ChatMessage,
+  LanguageCode,
+  MessageTranslation,
+  RoomMemberProfile,
+} from "../../shared/types"
 import { findSpam } from "./moderation"
 import {
   createTranslateProvider,
@@ -24,6 +29,11 @@ interface Session {
    * 临时身份下是本连接的随机 id，限流窗口仍跨连接（重连、刷新）生效。
    */
   rateKey: string
+  /**
+   * 成员档案（游客身份阶段）：头像/国旗/资料卡数据源，随 join 与
+   * profile_update 更新；清洗后的紧凑副本，不含任何 IP 信息。
+   */
+  profile?: RoomMemberProfile
 }
 
 /** 每个房间保留的近期消息条数。 */
@@ -101,6 +111,65 @@ const TR_PREFIX = "tr:"
 interface MessageWithSeq {
   message: ChatMessage
   seq: number
+}
+
+/**
+ * 成员档案存储（游客身份阶段）：键 `profile:{userId}`，值带 updatedAt
+ * 供滚动清理排序。头像 dataURL 上限约 100KB（base64 后 14 万字符），
+ * 与客户端压缩目标一致，防止免费层存储被灌爆。
+ */
+const PROFILE_PREFIX = "profile:"
+const MAX_PROFILES = 100
+const MAX_AVATAR_CHARS = 140_000
+
+interface StoredProfile extends RoomMemberProfile {
+  updatedAt: number
+}
+
+/** 档案字段的合理长度上限（显示名单独走现有的 20 字规则）。 */
+const MAX_PROFILE_FIELD = {
+  gender: 16,
+  job: 40,
+  hobbies: 80,
+  bio: 200,
+} as const
+
+/** 服务端清洗 join / profile_update 带来的档案：长度、格式、取值全不信任客户端。 */
+function sanitizeProfile(
+  payload: ProfilePayload | undefined,
+  userId: string,
+): RoomMemberProfile {
+  const displayName = (payload?.displayName ?? "").trim().slice(0, 20)
+  const profile: RoomMemberProfile = {
+    userId,
+    displayName: displayName || "无名氏",
+  }
+  const cc = (payload?.countryCode ?? "").trim().toUpperCase()
+  if (/^[A-Z]{2}$/.test(cc) && cc !== "XX" && cc !== "T1") profile.countryCode = cc
+  const avatar = payload?.avatar ?? ""
+  if (
+    (avatar.startsWith("data:image/") || /^#[0-9a-f]{6}$/i.test(avatar)) &&
+    avatar.length <= MAX_AVATAR_CHARS
+  ) {
+    profile.avatar = avatar
+  }
+  const gender = (payload?.gender ?? "").trim().toLowerCase()
+  if (gender === "male" || gender === "female" || gender === "other" || gender === "private") {
+    profile.gender = gender
+  }
+  const age = payload?.age
+  if (typeof age === "number" && Number.isInteger(age) && age >= 13 && age <= 120) {
+    profile.age = age
+  }
+  for (const key of ["job", "hobbies", "bio"] as const) {
+    const value = (payload?.[key] ?? "")
+      .trim()
+      .replace(/<[^>]*>/g, "")
+      .replace(/[<>]/g, "")
+      .slice(0, MAX_PROFILE_FIELD[key])
+    if (value) profile[key] = value
+  }
+  return profile
 }
 
 /** 自建房间元数据键：{ closesAt }。内置房间不写这个键、不设 Alarm。 */
@@ -244,11 +313,15 @@ export class RoomDurableObject implements DurableObject {
         // 非法或缺省时退回本连接临时随机 id（旧行为）。
         const visitorId = event.visitorId?.trim() ?? ""
         const userId = VISITOR_ID_PATTERN.test(visitorId) ? visitorId : crypto.randomUUID()
+        // 游客身份阶段：join 可带档案（头像/国旗/资料），清洗后落一份到
+        // 房间存储并广播；旧客户端不带也能加入（退回纯 senderName 行为）。
+        const profile = event.profile ? sanitizeProfile(event.profile, userId) : undefined
         const session: Session = {
           userId,
-          senderName: event.displayName.trim().slice(0, 20) || "无名氏",
+          senderName: profile?.displayName ?? (event.displayName.trim().slice(0, 20) || "无名氏"),
           language: event.language,
           rateKey: userId,
+          profile,
         }
         this.sessions.set(socket, session)
         this.sendTo(socket, { type: "joined", roomId: event.roomId, userId: session.userId })
@@ -267,8 +340,18 @@ export class RoomDurableObject implements DurableObject {
           })),
         )
         this.sendTo(socket, { type: "history", messages: items })
+        // 档案批量回放：历史消息的发送者 + 当前在房的人，只发给这条连接，
+        // 供历史消息显示头像/国旗与资料卡；查不到档案的发送者就没有（不阻塞）。
+        await this.sendMemberProfiles(
+          socket,
+          new Set([...messages.map(({ message }) => message.senderId), ...[...this.sessions.values()].map((s) => s.userId)]),
+        )
         // 历史里缺译文的不阻塞加入，异步补齐后单独推送（同语言的消息本来就不用翻）
         this.state.waitUntil(this.backfillHistory(socket, items, session.language))
+        if (profile) {
+          await this.saveProfile(profile)
+          this.broadcast({ type: "member_profile", member: profile })
+        }
         // 在房人数变化：广播 presence 并上报目录（阶段 9）
         this.broadcastPresence()
         this.notifyOccupancy()
@@ -341,6 +424,21 @@ export class RoomDurableObject implements DurableObject {
         socket.close()
         return
       }
+      case "profile_update": {
+        // 游客身份阶段：会话中改资料。清洗、更新 session 与存储，
+        // 广播 member_profile 让房里其他人尽快看到新昵称/国旗/头像/资料卡。
+        const session = this.sessions.get(socket)
+        if (!session) {
+          this.sendTo(socket, { type: "error", code: "not_joined", message: "请先加入房间" })
+          return
+        }
+        const profile = sanitizeProfile(event.profile, session.userId)
+        session.profile = profile
+        session.senderName = profile.displayName
+        await this.saveProfile(profile)
+        this.broadcast({ type: "member_profile", member: profile })
+        return
+      }
       case "report": {
         // 阶段 6：举报真正落盘。未加入房间不允许举报。
         const session = this.sessions.get(socket)
@@ -386,6 +484,46 @@ export class RoomDurableObject implements DurableObject {
         return
       }
     }
+  }
+
+  /**
+   * 成员档案落存储并滚动清理（游客身份阶段）：键 `profile:{userId}`，
+   * 值带 updatedAt；超过 MAX_PROFILES 时删最旧的，控制头像占用的体积。
+   */
+  private async saveProfile(profile: RoomMemberProfile): Promise<void> {
+    const stored: StoredProfile = { ...profile, updatedAt: Date.now() }
+    await this.state.storage.put(PROFILE_PREFIX + profile.userId, stored)
+    const entries = await this.state.storage.list<StoredProfile>({ prefix: PROFILE_PREFIX })
+    if (entries.size <= MAX_PROFILES) return
+    const sorted = [...entries.entries()].sort(
+      (a, b) => (a[1]?.updatedAt ?? 0) - (b[1]?.updatedAt ?? 0),
+    )
+    const excess = sorted.slice(0, entries.size - MAX_PROFILES)
+    await Promise.all(excess.map(([key]) => this.state.storage.delete(key)))
+  }
+
+  /** 批量取档案并只发给这条连接（join 后补齐历史消息发送者的头像/国旗）。 */
+  private async sendMemberProfiles(socket: WebSocket, userIds: Set<string>): Promise<void> {
+    const members: RoomMemberProfile[] = []
+    // 优先用当前会话里的（最新），没有再查存储（历史发送者可能已离线）
+    const fromSessions = new Map<string, RoomMemberProfile>()
+    for (const session of this.sessions.values()) {
+      if (session.profile) fromSessions.set(session.userId, session.profile)
+    }
+    for (const userId of userIds) {
+      if (!userId) continue
+      const live = fromSessions.get(userId)
+      if (live) {
+        members.push(live)
+        continue
+      }
+      const stored = await this.state.storage.get<StoredProfile>(PROFILE_PREFIX + userId)
+      if (stored) {
+        const { updatedAt: _updatedAt, ...member } = stored
+        members.push(member)
+      }
+    }
+    if (members.length > 0) this.sendTo(socket, { type: "member_profiles", members })
   }
 
   /** 把消息翻译成房间里每种「与原语言不同」的界面语言，并定向投递译文。 */

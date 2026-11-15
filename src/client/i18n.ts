@@ -137,6 +137,32 @@ interface Strings {
   roomFoodTopic: string
   roomLanguageTitle: string
   roomLanguageTopic: string
+  // 游客身份 / 设置 / 资料卡
+  settingsBtn: string
+  settingsTitle: string
+  avatarLabel: string
+  avatarUpload: string
+  avatarReset: string
+  avatarHint: string
+  avatarTooLarge: string
+  nicknameLabel: string
+  nicknameHint: string // {name}
+  genderLabel: string
+  genderMale: string
+  genderFemale: string
+  genderOther: string
+  genderPrivate: string
+  unsetOption: string
+  ageLabel: string
+  agePlaceholder: string
+  errAgeInvalid: string
+  errAgeTooYoung: string
+  jobLabel: string
+  hobbiesLabel: string
+  bioLabel: string
+  saveBtn: string
+  closeBtn: string
+  profileCardEmpty: string
 }
 
 const STRINGS: Record<string, Strings> = {
@@ -145,7 +171,7 @@ const STRINGS: Record<string, Strings> = {
     landingIntro:
       "WorldChat 是一个免费的跨语言聊天室：你用自己的语言打字，其他人自动看到译成他们语言的文本，每条消息都能查看原文。无需注册，手机上可添加到主屏当 App 用。",
     howTitle: "怎么用",
-    how1: "选好你的语言，起个显示名称。",
+    how1: "选好你的语言就能开始，会自动有一个游客名，随时可在设置里改成自己的昵称。",
     how2: "进入一个话题房间，或打开朋友分享给你的房间链接。",
     how3: "用自己的语言打字。大家看到的是他们自己的语言，点「查看原文」随时能看到你的原话。",
     nameLabel: "显示名称",
@@ -231,13 +257,38 @@ const STRINGS: Record<string, Strings> = {
     errRoomClosed: "房间已关闭",
     inviteHint: "只有你一个人？复制邀请链接，叫朋友进来聊吧。",
     loadingRoom: "正在打开房间…",
+    settingsBtn: "设置",
+    settingsTitle: "个人资料设置",
+    avatarLabel: "头像",
+    avatarUpload: "上传图片",
+    avatarReset: "恢复默认",
+    avatarHint: "上传的图片会自动压到 192px、约 100KB 以内；不选就用系统为你的身份生成的色块头像。",
+    avatarTooLarge: "图片太大或处理失败，换一张试试",
+    nicknameLabel: "昵称",
+    nicknameHint: "留空就用当前语言的游客名：{name}",
+    genderLabel: "性别",
+    genderMale: "男",
+    genderFemale: "女",
+    genderOther: "其他",
+    genderPrivate: "不愿透露",
+    unsetOption: "不填",
+    ageLabel: "年龄",
+    agePlaceholder: "13–120，选填",
+    errAgeInvalid: "年龄需要是 13–120 的整数",
+    errAgeTooYoung: "未满 13 岁不能使用本服务",
+    jobLabel: "工作",
+    hobbiesLabel: "喜好",
+    bioLabel: "简介",
+    saveBtn: "保存",
+    closeBtn: "关闭",
+    profileCardEmpty: "这位朋友还没有填写资料。",
   },
   en: {
     tagline: "Chat in your language — everyone reads in theirs.",
     landingIntro:
       "WorldChat is a free multilingual chat room. Type in your own language and others automatically see your message translated into theirs — with the original always one tap away. No sign-up, and it installs to your phone's home screen.",
     howTitle: "How it works",
-    how1: "Pick your language and a display name.",
+    how1: "Pick your language and jump in — you get a guest name and can set your own nickname anytime in Settings.",
     how2: "Join a topic room, or open a room link a friend shared with you.",
     how3: "Type in your own language. Everyone reads in theirs, and “Show original” reveals exactly what you wrote.",
     nameLabel: "Display name",
@@ -323,13 +374,38 @@ const STRINGS: Record<string, Strings> = {
     errRoomClosed: "Room closed",
     inviteHint: "All alone here? Copy the invite link and bring a friend in.",
     loadingRoom: "Opening the room…",
+    settingsBtn: "Settings",
+    settingsTitle: "Profile settings",
+    avatarLabel: "Avatar",
+    avatarUpload: "Upload image",
+    avatarReset: "Use default",
+    avatarHint: "Uploaded images are compressed to 192px and about 100KB; otherwise a color-block avatar is generated for your identity.",
+    avatarTooLarge: "Image too large or failed to process — try another one",
+    nicknameLabel: "Nickname",
+    nicknameHint: "Leave empty to use the guest name for your language: {name}",
+    genderLabel: "Gender",
+    genderMale: "Male",
+    genderFemale: "Female",
+    genderOther: "Other",
+    genderPrivate: "Prefer not to say",
+    unsetOption: "Not set",
+    ageLabel: "Age",
+    agePlaceholder: "13–120, optional",
+    errAgeInvalid: "Age must be an integer between 13 and 120",
+    errAgeTooYoung: "You must be at least 13 to use this service",
+    jobLabel: "Work",
+    hobbiesLabel: "Hobbies",
+    bioLabel: "About me",
+    saveBtn: "Save",
+    closeBtn: "Close",
+    profileCardEmpty: "This person hasn't filled in their profile yet.",
   },
   ja: {
     tagline: "自分の言語で話そう。みんなには自分の言語で見える。",
     landingIntro:
       "WorldChat は無料の多言語チャットルームです。自分の言語で入力すると、他の人には自動的にその言語に翻訳されて表示され、原文もいつでもワンタップで確認できます。登録不要で、スマホのホーム画面にアプリとして追加できます。",
     howTitle: "使い方",
-    how1: "言語と表示名を選びます。",
+    how1: "言語を選ぶだけで始められます。ゲスト名が自動で付き、設定でいつでもニックネームに変更できます。",
     how2: "トピックの部屋に入るか、友達から共有された部屋のリンクを開きます。",
     how3: "自分の言語で入力しましょう。相手には相手の言語で表示され、「原文を見る」であなたの書いたままの文章を確認できます。",
     nameLabel: "表示名",
@@ -415,13 +491,38 @@ const STRINGS: Record<string, Strings> = {
     errRoomClosed: "部屋は閉鎖されました",
     inviteHint: "一人だけ？招待リンクをコピーして友達を呼びましょう。",
     loadingRoom: "部屋を開いています…",
+    settingsBtn: "設定",
+    settingsTitle: "プロフィール設定",
+    avatarLabel: "アイコン",
+    avatarUpload: "画像をアップロード",
+    avatarReset: "デフォルトに戻す",
+    avatarHint: "アップロードした画像は 192px・約 100KB まで圧縮されます。選ばない場合は本人ごとに決まる色アイコンになります。",
+    avatarTooLarge: "画像が大きすぎるか処理に失敗しました。別の画像でお試しください",
+    nicknameLabel: "ニックネーム",
+    nicknameHint: "空欄の場合は現在の言語のゲスト名になります：{name}",
+    genderLabel: "性別",
+    genderMale: "男性",
+    genderFemale: "女性",
+    genderOther: "その他",
+    genderPrivate: "回答しない",
+    unsetOption: "未設定",
+    ageLabel: "年齢",
+    agePlaceholder: "13〜120、任意",
+    errAgeInvalid: "年齢は 13〜120 の整数で入力してください",
+    errAgeTooYoung: "13 歳未満の方はご利用いただけません",
+    jobLabel: "仕事",
+    hobbiesLabel: "趣味",
+    bioLabel: "自己紹介",
+    saveBtn: "保存",
+    closeBtn: "閉じる",
+    profileCardEmpty: "この人のプロフィールはまだ未記入です。",
   },
   es: {
     tagline: "Chatea en tu idioma: cada quien lee en el suyo.",
     landingIntro:
       "WorldChat es una sala de chat multilingüe y gratuita. Escribe en tu idioma y los demás ven automáticamente tu mensaje traducido al suyo, con el original siempre a un toque de distancia. Sin registro, y puedes instalarlo en la pantalla de inicio de tu móvil.",
     howTitle: "Cómo funciona",
-    how1: "Elige tu idioma y un nombre para mostrar.",
+    how1: "Elige tu idioma y entra: recibirás un nombre de invitado y podrás poner tu apodo cuando quieras en Ajustes.",
     how2: "Entra en una sala por tema, o abre el enlace que te compartió alguien.",
     how3: "Escribe en tu idioma. Cada quien lee en el suyo, y con «Ver original» puedes comprobar el texto exacto.",
     nameLabel: "Nombre para mostrar",
@@ -507,13 +608,38 @@ const STRINGS: Record<string, Strings> = {
     errRoomClosed: "Sala cerrada",
     inviteHint: "¿Estás solo? Copia el enlace de invitación y trae a un amigo.",
     loadingRoom: "Abriendo la sala…",
+    settingsBtn: "Ajustes",
+    settingsTitle: "Ajustes de perfil",
+    avatarLabel: "Avatar",
+    avatarUpload: "Subir imagen",
+    avatarReset: "Usar el predeterminado",
+    avatarHint: "Las imágenes se comprimen a 192px y unos 100KB; si no eliges ninguna, se genera un avatar de color para tu identidad.",
+    avatarTooLarge: "Imagen demasiado grande o error al procesarla; prueba con otra",
+    nicknameLabel: "Apodo",
+    nicknameHint: "Déjalo vacío para usar el nombre de invitado en tu idioma: {name}",
+    genderLabel: "Género",
+    genderMale: "Masculino",
+    genderFemale: "Femenino",
+    genderOther: "Otro",
+    genderPrivate: "Prefiero no decirlo",
+    unsetOption: "Sin establecer",
+    ageLabel: "Edad",
+    agePlaceholder: "13–120, opcional",
+    errAgeInvalid: "La edad debe ser un entero entre 13 y 120",
+    errAgeTooYoung: "Debes tener al menos 13 años para usar este servicio",
+    jobLabel: "Trabajo",
+    hobbiesLabel: "Aficiones",
+    bioLabel: "Presentación",
+    saveBtn: "Guardar",
+    closeBtn: "Cerrar",
+    profileCardEmpty: "Esta persona aún no ha completado su perfil.",
   },
   fr: {
     tagline: "Discutez dans votre langue — chacun lit dans la sienne.",
     landingIntro:
       "WorldChat est un salon de discussion multilingue gratuit. Écrivez dans votre langue et les autres voient automatiquement votre message traduit dans la leur, l'original restant toujours à un geste. Sans inscription, et installable sur l'écran d'accueil du téléphone.",
     howTitle: "Comment ça marche",
-    how1: "Choisissez votre langue et un nom d'affichage.",
+    how1: "Choisissez votre langue et entrez : un nom d'invité vous est attribué, et vous pouvez définir un pseudo à tout moment dans les Réglages.",
     how2: "Entrez dans un salon par thème, ou ouvrez le lien qu'on vous a partagé.",
     how3: "Écrivez dans votre langue. Chacun lit dans la sienne, et « Voir l'original » montre exactement votre texte.",
     nameLabel: "Nom d'affichage",
@@ -599,6 +725,31 @@ const STRINGS: Record<string, Strings> = {
     errRoomClosed: "Salon fermé",
     inviteHint: "Tout seul ici ? Copiez le lien d'invitation et amenez un ami.",
     loadingRoom: "Ouverture du salon…",
+    settingsBtn: "Réglages",
+    settingsTitle: "Réglages du profil",
+    avatarLabel: "Avatar",
+    avatarUpload: "Téléverser une image",
+    avatarReset: "Par défaut",
+    avatarHint: "Les images sont comprimées à 192px et environ 100 Ko ; sinon un avatar en aplat de couleur est généré pour votre identité.",
+    avatarTooLarge: "Image trop grande ou échec du traitement — essayez une autre",
+    nicknameLabel: "Pseudo",
+    nicknameHint: "Laissez vide pour utiliser le nom d'invité dans votre langue : {name}",
+    genderLabel: "Genre",
+    genderMale: "Homme",
+    genderFemale: "Femme",
+    genderOther: "Autre",
+    genderPrivate: "Je préfère ne pas dire",
+    unsetOption: "Non défini",
+    ageLabel: "Âge",
+    agePlaceholder: "13–120, facultatif",
+    errAgeInvalid: "L'âge doit être un entier entre 13 et 120",
+    errAgeTooYoung: "Il faut avoir au moins 13 ans pour utiliser ce service",
+    jobLabel: "Métier",
+    hobbiesLabel: "Passions",
+    bioLabel: "Présentation",
+    saveBtn: "Enregistrer",
+    closeBtn: "Fermer",
+    profileCardEmpty: "Cette personne n'a pas encore rempli son profil.",
   },
 }
 
@@ -654,6 +805,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       { h: "我们处理哪些信息", p: [
         "WorldChat 不设账号，不收集邮箱、手机号或支付信息。进入聊天时只需要一个显示名称和你的界面语言，它们保存在你浏览器的本地存储里，清除浏览器数据即删除。",
         "你发送的消息（含发送者显示名称、语言、时间）会保存在房间所在的服务器存储中。每个房间只保留最近约 100 条消息和它们的译文，供后来进入的人查看。",
+        "国家/地区与可选资料：我们根据 Cloudflare 边缘网络在你连接时推断的国家/地区显示国旗，不保存你的原始 IP 地址。你在设置里填写的可选资料（头像、昵称、性别、年龄等）仅存本地，并展示给你所在房间的其他人。",
       ] },
       { h: "消息会交给翻译服务", p: [
         "为了让不同语言的人聊天，你发送的消息文本会交给机器翻译服务（当前包括 Cloudflare Workers AI、Google 与 MyMemory 的免费接口）生成译文，译文会缓存并展示给房间里其他人。",
@@ -673,6 +825,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       { h: "What we process", p: [
         "WorldChat has no accounts. We don't collect email addresses, phone numbers, or payment information. Chatting only requires a display name and your interface language, both stored in your browser's local storage — clearing your browser data removes them.",
         "Messages you send (with display name, language, and time) are kept in server storage for the room. Each room keeps only the most recent ~100 messages and their translations so later visitors can catch up.",
+        "Country/region and optional profile: your flag is inferred from the country Cloudflare's edge network sees when you connect; your raw IP address is never stored. Optional details you fill in Settings (avatar, nickname, gender, age, etc.) stay on your device and are shown to others in rooms you join.",
       ] },
       { h: "Messages go to translation services", p: [
         "To let people chat across languages, the text of your messages is sent to machine-translation services (currently free tiers of Cloudflare Workers AI, Google, and MyMemory) to produce translations, which are cached and shown to others in the room.",
@@ -692,6 +845,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       { h: "扱う情報", p: [
         "WorldChat にはアカウントがなく、メールアドレス・電話番号・支払い情報は収集しません。チャットに必要なのは表示名とインターフェース言語だけで、どちらもブラウザのローカルストレージに保存されます。ブラウザのデータを削除すれば消えます。",
         "送信したメッセージ（表示名・言語・時刻を含む）は、その部屋のサーバー保存領域に保存されます。各部屋には直近の約 100 件のメッセージとその翻訳だけが残り、後から入った人が会話を追えます。",
+        "国/地域と任意のプロフィール：国旗は、接続時に Cloudflare のエッジネットワークが推断した国/地域に基づいて表示され、元の IP アドレスは保存しません。設定で入力した任意のプロフィール（アイコン・ニックネーム・性別・年齢など）は端末内にのみ保存され、参加した部屋の他の人に表示されます。",
       ] },
       { h: "メッセージは翻訳サービスに渡されます", p: [
         "異なる言語どうしの会話を可能にするため、メッセージ本文は機械翻訳サービス（現在は Cloudflare Workers AI・Google・MyMemory の無料枠）に送られて翻訳され、その訳文はキャッシュされて部屋の他の人に表示されます。",
@@ -711,6 +865,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       { h: "Qué tratamos", p: [
         "WorldChat no tiene cuentas: no recopilamos correos, números de teléfono ni datos de pago. Para chatear solo hacen falta un nombre para mostrar y tu idioma, guardados en el almacenamiento local de tu navegador; borrar los datos del navegador los elimina.",
         "Los mensajes que envías (con nombre, idioma y hora) se guardan en el almacenamiento del servidor de la sala. Cada sala conserva solo los últimos ~100 mensajes y sus traducciones, para que quien entre después pueda ponerse al día.",
+        "País/región y perfil opcional: tu bandera se deduce del país que la red periférica de Cloudflare ve al conectarte; tu IP original nunca se guarda. Los datos opcionales que completes en Ajustes (avatar, apodo, género, edad, etc.) se guardan solo en tu dispositivo y se muestran a los demás en las salas en las que entres.",
       ] },
       { h: "Los mensajes pasan por servicios de traducción", p: [
         "Para que personas de distintos idiomas conversen, el texto de tus mensajes se envía a servicios de traducción automática (actualmente los niveles gratuitos de Cloudflare Workers AI, Google y MyMemory); las traducciones se guardan en caché y se muestran al resto de la sala.",
@@ -730,6 +885,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       { h: "Ce que nous traitons", p: [
         "WorldChat n'a pas de comptes : nous ne collectons ni e-mail, ni numéro de téléphone, ni informations de paiement. Discuter ne demande qu'un nom d'affichage et votre langue d'interface, conservés dans le stockage local de votre navigateur — effacer les données du navigateur les supprime.",
         "Les messages que vous envoyez (avec nom, langue et horodatage) sont conservés dans le stockage du salon. Chaque salon ne garde que les ~100 derniers messages et leurs traductions, afin que les nouveaux arrivants puissent suivre.",
+        "Pays/région et profil facultatif : votre drapeau est déduit du pays que le réseau Edge de Cloudflare voit lors de la connexion ; votre adresse IP d'origine n'est jamais conservée. Les renseignements facultatifs saisis dans les Réglages (avatar, pseudo, genre, âge, etc.) restent sur votre appareil et sont montrés aux autres membres des salons que vous rejoignez.",
       ] },
       { h: "Les messages passent par des services de traduction", p: [
         "Pour permettre des conversations multilingues, le texte de vos messages est envoyé à des services de traduction automatique (actuellement les offres gratuites de Cloudflare Workers AI, Google et MyMemory) ; les traductions sont mises en cache et affichées aux autres membres du salon.",

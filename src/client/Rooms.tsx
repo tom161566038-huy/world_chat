@@ -6,11 +6,11 @@
  */
 import { useCallback, useEffect, useState } from "react"
 import { BUILTIN_ROOMS } from "../shared/rooms"
-import type { LanguageCode, Room } from "../shared/types"
+import type { LanguageCode, Profile, Room } from "../shared/types"
 import { createRoom, fetchRooms, getVisitorId } from "./api"
-import type { Profile } from "./Landing"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, t } from "./i18n"
+import { displayNameOf, flagEmoji } from "./profile"
 import { roomLink } from "./router"
 import { copyText } from "./share"
 
@@ -31,6 +31,8 @@ interface RoomsProps {
   onResetProfile: () => void
   /** 顶部切换语言：上层写回 profile 持久化，整个界面立即跟随。 */
   onLanguageChange: (language: LanguageCode) => void
+  /** 打开设置面板（游客身份阶段）。 */
+  onOpenSettings: () => void
 }
 
 function closesLabel(lang: LanguageCode, closesAt: number): string {
@@ -39,7 +41,13 @@ function closesLabel(lang: LanguageCode, closesAt: number): string {
   return t(lang, "closesInHours", { count: String(Math.ceil(minutes / 60)) })
 }
 
-export default function Rooms({ profile, onEnter, onResetProfile, onLanguageChange }: RoomsProps) {
+export default function Rooms({
+  profile,
+  onEnter,
+  onResetProfile,
+  onLanguageChange,
+  onOpenSettings,
+}: RoomsProps) {
   const lang: LanguageCode = profile.language
   const [occupancy, setOccupancy] = useState<Record<string, number>>({})
   const [userRooms, setUserRooms] = useState<Room[]>([])
@@ -95,7 +103,7 @@ export default function Rooms({ profile, onEnter, onResetProfile, onLanguageChan
       topic: topic.trim(),
       durationMinutes: duration,
       creatorId: getVisitorId(),
-      creatorName: profile.displayName,
+      creatorName: displayNameOf(profile),
     })
     setCreating(false)
     if (result.ok) {
@@ -147,7 +155,13 @@ export default function Rooms({ profile, onEnter, onResetProfile, onLanguageChan
         <h1>WorldChat</h1>
         <LanguageSwitcher language={lang} onChange={onLanguageChange} />
       </div>
-      <p className="subtitle">{t(lang, "helloRooms", { name: profile.displayName })}</p>
+      <p className="subtitle">
+        {t(lang, "helloRooms", { name: displayNameOf(profile) })}
+        {/* 国旗识别不到就不显示，不用占位旗 */}
+        {flagEmoji(profile.countryCode) && (
+          <span className="flag"> {flagEmoji(profile.countryCode)}</span>
+        )}
+      </p>
       {loadFailed && <p className="load-error">{t(lang, "errLoadRooms")}</p>}
 
       <div className="rooms">
@@ -237,6 +251,11 @@ export default function Rooms({ profile, onEnter, onResetProfile, onLanguageChan
             </span>
           </div>
         )}
+
+        {/* 设置入口：块级换行，与创建表单/换个身份都分行 */}
+        <button className="link settings-link" onClick={onOpenSettings}>
+          {t(lang, "settingsBtn")}
+        </button>
 
         {/* 独立间距类：与「创建房间」拉开距离，不影响其它 .link */}
         <button className="link identity-link" onClick={onResetProfile}>

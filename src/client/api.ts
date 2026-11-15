@@ -24,6 +24,24 @@ export function resetVisitorId(): void {
   localStorage.removeItem(VISITOR_KEY)
 }
 
+/**
+ * 边缘国家码（游客身份阶段）：GET /api/geo 返回 ISO 3166-1 alpha-2。
+ * 失败/识别不到返回 null——调用方不要因此清掉已有国家码。
+ */
+export async function fetchCountryCode(): Promise<string | null> {
+  try {
+    const res = await fetch("/api/geo")
+    if (!res.ok) return null
+    const body = (await res.json()) as { country?: string | null }
+    const country = body.country ?? null
+    return typeof country === "string" && /^[A-Za-z]{2}$/.test(country)
+      ? country.toUpperCase()
+      : null
+  } catch {
+    return null
+  }
+}
+
 /** 拉列表：内置 + 自建房间的在房人数都在 occupancy 里；失败返回 null（UI 提示重试）。 */
 export async function fetchRooms(): Promise<RoomsListResponse | null> {
   try {
