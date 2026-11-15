@@ -235,8 +235,9 @@ body {
 }
 
 /* 列表页「换个身份」与「创建房间」上下排列并拉开距离：
-   .link 默认 inline 会并排成一行，这里改成块级换行，宽度收缩不撑满 */
-.identity-link {
+   .link 默认 inline 会并排成一行，这里改成块级换行，宽度收缩不撑满。
+   双类选择器 .link.identity-link 抬高优先级，压过后面的 .link { margin-top: 16px } */
+.link.identity-link {
   display: block;
   width: fit-content;
   margin-top: 32px;
