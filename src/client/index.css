@@ -87,7 +87,10 @@ h1 {
   color: var(--ink-secondary);
 }
 
-/* 顶部标题行（界面小修复）：标题 + 紧凑语言切换器（常见右上） */
+/* 统一顶部栏（聊天顶栏 .chat-header 与落地页/房间列表/文档页的 .page-top）：
+   同一套布局与垂直居中，栏内所有子项（标题、链接、按钮、下拉、徽章、状态）
+   一律中线对齐；以后新增同类顶栏加进这组选择器即可自动沿用 */
+.chat-header,
 .page-top {
   display: flex;
   justify-content: space-between;
@@ -95,8 +98,14 @@ h1 {
   gap: 12px;
 }
 
-.page-top .link {
-  margin-top: 0;
+/* 只在顶部栏作用域内清掉会打偏中线的默认外边距：
+   .link 的 margin-top:16px、.toggle 给消息区「显示原文」留的 4px 上边距
+   （泄漏到顶栏邀请按钮上会把按钮顶下去）。消息区样式不受影响 */
+.chat-header .link,
+.chat-header .toggle,
+.page-top .link,
+.page-top .toggle {
+  margin: 0;
 }
 
 /* 紧凑语言切换器：页眉里的精致小控件，胶囊形，不抢主内容。
@@ -427,10 +436,6 @@ h1 {
   text-decoration: underline;
 }
 
-.chat-header .link {
-  margin-top: 0;
-}
-
 /* 聊天视图 */
 .chat {
   display: flex;
@@ -445,11 +450,8 @@ h1 {
   padding-right: env(safe-area-inset-right);
 }
 
+/* 聊天顶栏：布局与垂直居中走上面统一顶部栏规则，这里只留皮肤（留白/边线/底色） */
 .chat-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
   padding: 12px 16px;
   padding-top: calc(12px + env(safe-area-inset-top));
   border-bottom: 1px solid var(--line);
