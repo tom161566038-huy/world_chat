@@ -99,15 +99,16 @@ h1 {
   margin-top: 0;
 }
 
-/* 紧凑语言切换器：页眉里的精致小控件，胶囊形，不抢主内容 */
+/* 紧凑语言切换器：页眉里的精致小控件，胶囊形，不抢主内容。
+   箭头与右内边距不在这里写，统一走文件末尾的 select 控件规则 */
 .lang-switcher {
-  padding: 4px 30px 4px 12px;
+  padding: 4px 12px;
   font-family: var(--font-ui);
   font-size: 13px;
   color: var(--ink-secondary);
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: var(--bg-elevated);
+  background-color: var(--bg-elevated);
   cursor: pointer;
 }
 
@@ -271,11 +272,7 @@ h1 {
   background: var(--bg-elevated);
 }
 
-/* 下拉原生箭头不贴右边、文字不被箭头压住（界面小修复） */
-.entry select,
-.create-form select {
-  padding-right: 34px;
-}
+/* 下拉控件的箭头与右内边距统一由文件末尾的 select 控件规则接管 */
 
 .form-actions {
   display: flex;
@@ -654,4 +651,23 @@ h1 {
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
   background: var(--bg);
+}
+
+/*
+ * 统一下拉控件（全站唯一一份箭头几何）：去掉原生箭头（Safari / WebKit 上
+ * 仅靠 padding-right 移不动它），改用内联 SVG 小箭头（次级墨色，与令牌一致，
+ * 不引外链图标），距右边缘 12px，与间距阶梯对齐；右内边距 38px 防止文字被压。
+ * 裸 select 自动继承；后面把现存上下文一并写进同一条规则并置于文件末尾，
+ * 压过各处 padding / background 简写——以后新增下拉不需要再写特例。
+ */
+select,
+.entry select,
+.create-form select,
+.lang-switcher {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1.5l4 3.5 4-3.5' fill='none' stroke='%235c574f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
 }
