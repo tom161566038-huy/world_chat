@@ -163,6 +163,11 @@ interface Strings {
   saveBtn: string
   closeBtn: string
   profileCardEmpty: string
+  // 用户主页（资料卡上的「查看主页」入口）
+  viewProfileHome: string
+  profileHomeLocked: string
+  backToChat: string
+  editProfile: string
 }
 
 const STRINGS: Record<string, Strings> = {
@@ -282,6 +287,10 @@ const STRINGS: Record<string, Strings> = {
     saveBtn: "保存",
     closeBtn: "关闭",
     profileCardEmpty: "这位朋友还没有填写资料。",
+    viewProfileHome: "查看主页",
+    profileHomeLocked: "暂时无法查看主页",
+    backToChat: "返回聊天",
+    editProfile: "编辑资料",
   },
   en: {
     tagline: "Chat in your language — everyone reads in theirs.",
@@ -399,6 +408,10 @@ const STRINGS: Record<string, Strings> = {
     saveBtn: "Save",
     closeBtn: "Close",
     profileCardEmpty: "This person hasn't filled in their profile yet.",
+    viewProfileHome: "View profile",
+    profileHomeLocked: "The profile page isn't available right now.",
+    backToChat: "Back to chat",
+    editProfile: "Edit profile",
   },
   ja: {
     tagline: "自分の言語で話そう。みんなには自分の言語で見える。",
@@ -516,6 +529,10 @@ const STRINGS: Record<string, Strings> = {
     saveBtn: "保存",
     closeBtn: "閉じる",
     profileCardEmpty: "この人のプロフィールはまだ未記入です。",
+    viewProfileHome: "プロフィールを見る",
+    profileHomeLocked: "現在プロフィールページは表示できません。",
+    backToChat: "チャットに戻る",
+    editProfile: "プロフィールを編集",
   },
   es: {
     tagline: "Chatea en tu idioma: cada quien lee en el suyo.",
@@ -633,6 +650,10 @@ const STRINGS: Record<string, Strings> = {
     saveBtn: "Guardar",
     closeBtn: "Cerrar",
     profileCardEmpty: "Esta persona aún no ha completado su perfil.",
+    viewProfileHome: "Ver perfil",
+    profileHomeLocked: "La página de perfil no está disponible por ahora.",
+    backToChat: "Volver al chat",
+    editProfile: "Editar perfil",
   },
   fr: {
     tagline: "Discutez dans votre langue — chacun lit dans la sienne.",
@@ -750,6 +771,10 @@ const STRINGS: Record<string, Strings> = {
     saveBtn: "Enregistrer",
     closeBtn: "Fermer",
     profileCardEmpty: "Cette personne n'a pas encore rempli son profil.",
+    viewProfileHome: "Voir le profil",
+    profileHomeLocked: "La page de profil n'est pas disponible pour le moment.",
+    backToChat: "Retour au chat",
+    editProfile: "Modifier le profil",
   },
 }
 

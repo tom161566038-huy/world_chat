@@ -10,6 +10,7 @@ import type {
 } from "../shared/types"
 import Avatar from "./Avatar"
 import ProfileCard from "./ProfileCard"
+import ProfileHome from "./ProfileHome"
 import { getVisitorId } from "./api"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, sameLanguage, serverErrorMessage, t } from "./i18n"
@@ -236,6 +237,8 @@ export default function Chat({
   const [members, setMembers] = useState<Record<string, RoomMemberProfile>>({})
   /** 点开的资料卡对应的 userId；null = 关着。 */
   const [cardUserId, setCardUserId] = useState<string | null>(null)
+  /** 打开的用户主页对应的 userId（应用内视图状态，不新增路由）；null = 关着。 */
+  const [homeUserId, setHomeUserId] = useState<string | null>(null)
   /** 最近一次上报给服务端的档案（JSON）：避免 join 后重复发 profile_update。 */
   const lastSentProfileRef = useRef<string | null>(null)
 
@@ -451,6 +454,7 @@ export default function Chat({
 
   const roomTitle = roomMeta(language, room.slug, room).title
   const cardMember = cardUserId !== null ? memberForCard(cardUserId) : null
+  const homeMember = homeUserId !== null ? memberForCard(homeUserId) : null
   const connLabel =
     status === "open"
       ? t(language, "connected")
@@ -536,6 +540,24 @@ export default function Chat({
           member={cardMember}
           language={language}
           onClose={() => setCardUserId(null)}
+          onOpenHome={(userId) => {
+            setCardUserId(null)
+            setHomeUserId(userId)
+          }}
+        />
+      )}
+
+      {homeMember && homeUserId !== null && (
+        <ProfileHome
+          member={homeMember}
+          language={language}
+          isSelf={homeUserId === myUserId}
+          onBack={() => setHomeUserId(null)}
+          onEditProfile={() => {
+            // 打开已有设置面板前先收起主页，保存后仍在房间里
+            setHomeUserId(null)
+            onOpenSettings()
+          }}
         />
       )}
 

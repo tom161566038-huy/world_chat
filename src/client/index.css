@@ -898,6 +898,7 @@ h1 {
   margin: 0;
   color: var(--ink);
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .profile-empty {
@@ -906,8 +907,91 @@ h1 {
   color: var(--ink-muted);
 }
 
-.profile-card .link {
+/* 资料卡底部操作区：关闭 + 查看主页（门禁拒绝时替换为不可打开说明） */
+.profile-card-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
   margin-top: 24px;
+}
+
+.profile-card-actions .link {
+  margin-top: 0;
+}
+
+/* 「查看主页」主按钮档：与表单主按钮同一套令牌 */
+.profile-home-btn {
+  margin-left: auto;
+  padding: 10px 20px;
+  font-size: 15px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: var(--accent);
+  color: #f9f7f2;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.profile-home-btn:hover {
+  background: var(--accent-strong);
+}
+
+.profile-home-locked {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* 用户主页：应用内全屏视图（盖在聊天现场上，聊天连接保持不断） */
+.profile-home {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 16px;
+  background: var(--bg);
+}
+
+.profile-home-inner {
+  width: min(520px, 100%);
+  padding: 32px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-elevated);
+  text-align: left;
+}
+
+.profile-home-inner .profile-head {
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.profile-name-lg {
+  font-size: 20px;
+}
+
+.profile-home-actions {
+  margin-top: 24px;
+}
+
+/* 返回聊天：主按钮档（与「查看主页」同款） */
+.profile-home-back {
+  margin-left: auto;
+  padding: 10px 20px;
+  font-size: 15px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: var(--accent);
+  color: #f9f7f2;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.profile-home-back:hover {
+  background: var(--accent-strong);
 }
 
 /* 房间列表「设置」：块级换行（与「换个身份」同一样式族，间距小一档） */

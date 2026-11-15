@@ -5,6 +5,7 @@
 import type { LanguageCode, Profile, RoomMemberProfile } from "../shared/types"
 import type { ProfilePayload } from "../shared/protocol"
 import { getVisitorId } from "./api"
+import { t } from "./i18n"
 
 const PROFILE_KEY = "worldchat:profile"
 
@@ -143,6 +144,43 @@ export function profilePayloadOf(profile: Profile, displayName: string): Profile
 /** 本地档案转展示用成员档案（自己看自己）。 */
 export function memberOf(profile: Profile, userId: string): RoomMemberProfile {
   return { userId, ...profilePayloadOf(profile, displayNameOf(profile)) }
+}
+
+/** 性别字段 → 界面语言文案（未填/未知返回空串，不摆空壳）。 */
+export function genderLabel(language: LanguageCode, gender?: string): string {
+  if (gender === "male") return t(language, "genderMale")
+  if (gender === "female") return t(language, "genderFemale")
+  if (gender === "other") return t(language, "genderOther")
+  if (gender === "private") return t(language, "genderPrivate")
+  return ""
+}
+
+/** 成员档案 → [label, value] 行列表（资料卡与主页共用；没填的字段不出现）。 */
+export function profileFieldRows(
+  language: LanguageCode,
+  member: RoomMemberProfile,
+  opts?: { summarizeBio?: boolean },
+): Array<[string, string]> {
+  const rows: Array<[string, string]> = []
+  const gender = genderLabel(language, member.gender)
+  if (gender) rows.push([t(language, "genderLabel"), gender])
+  if (member.age !== undefined) rows.push([t(language, "ageLabel"), String(member.age)])
+  if (member.job) rows.push([t(language, "jobLabel"), member.job])
+  if (member.hobbies) rows.push([t(language, "hobbiesLabel"), member.hobbies])
+  if (member.bio) {
+    rows.push([
+      t(language, "bioLabel"),
+      opts?.summarizeBio ? summarizeBio(member.bio) : member.bio,
+    ])
+  }
+  return rows
+}
+
+/** 简略资料卡里的简介摘要：约 80 字（按码点）截断 + 统一省略号；完整简介在主页。 */
+export function summarizeBio(bio: string, max = 80): string {
+  const chars = Array.from(bio)
+  if (chars.length <= max) return bio
+  return `${chars.slice(0, max).join("")}…`
 }
 
 /**

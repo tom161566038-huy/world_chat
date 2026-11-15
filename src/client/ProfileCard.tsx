@@ -1,38 +1,29 @@
 /**
- * 轻量资料卡（游客身份阶段）：点聊天里的头像或名字打开，
- * 展示对方已填的资料；没填的字段不摆空壳。
+ * 轻量资料卡（免费，永远可看）：点聊天里的头像或名字打开，
+ * 展示对方已填资料的简略版（简介截断，完整版在主页）；
+ * 「查看主页」入口经过统一门禁 canOpenProfileHome。
  */
 import type { LanguageCode, RoomMemberProfile } from "../shared/types"
 import Avatar from "./Avatar"
-import { flagEmoji } from "./profile"
+import { flagEmoji, profileFieldRows } from "./profile"
 import { t } from "./i18n"
-
-function genderLabel(lang: LanguageCode, gender?: string): string {
-  if (gender === "male") return t(lang, "genderMale")
-  if (gender === "female") return t(lang, "genderFemale")
-  if (gender === "other") return t(lang, "genderOther")
-  if (gender === "private") return t(lang, "genderPrivate")
-  return ""
-}
+import { canOpenProfileHome } from "./profileHomeGate"
 
 export default function ProfileCard({
   member,
   language,
   onClose,
+  onOpenHome,
 }: {
   member: RoomMemberProfile
   language: LanguageCode
   onClose: () => void
+  onOpenHome: (userId: string) => void
 }) {
   const flag = flagEmoji(member.countryCode)
-  // 只展示已填的字段（没填的不摆一排空壳）
-  const rows: Array<[string, string]> = []
-  const gender = genderLabel(language, member.gender)
-  if (gender) rows.push([t(language, "genderLabel"), gender])
-  if (member.age !== undefined) rows.push([t(language, "ageLabel"), String(member.age)])
-  if (member.job) rows.push([t(language, "jobLabel"), member.job])
-  if (member.hobbies) rows.push([t(language, "hobbiesLabel"), member.hobbies])
-  if (member.bio) rows.push([t(language, "bioLabel"), member.bio])
+  // 简略版：已填字段摘要，长简介统一截断（完整简介在主页）
+  const rows = profileFieldRows(language, member, { summarizeBio: true })
+  const homeAccess = canOpenProfileHome(member.userId)
 
   return (
     <div className="overlay" onClick={onClose} role="presentation">
@@ -61,9 +52,25 @@ export default function ProfileCard({
         ) : (
           <p className="profile-empty">{t(language, "profileCardEmpty")}</p>
         )}
-        <button type="button" className="link" onClick={onClose}>
-          {t(language, "closeBtn")}
-        </button>
+        <div className="profile-card-actions">
+          <button type="button" className="link" onClick={onClose}>
+            {t(language, "closeBtn")}
+          </button>
+          {homeAccess.allowed ? (
+            <button
+              type="button"
+              className="profile-home-btn"
+              onClick={() => onOpenHome(member.userId)}
+            >
+              {t(language, "viewProfileHome")}
+            </button>
+          ) : (
+            // 门禁拒绝时的不可打开状态（现阶段走不到）
+            <span className="profile-home-locked" role="note">
+              {t(language, "profileHomeLocked")}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )

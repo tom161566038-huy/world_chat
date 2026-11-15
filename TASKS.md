@@ -350,3 +350,24 @@
   剥 HTML/非法头像与 age<13 拒收）、member_profile 广播、member_profiles
   回放、profile_update 后消息用新昵称、档案灌 150 份只留 100——全部通过；
   真实 Worker fetch 验证 /api/geo（无 cf→null、JP→JP、XX→null、header fr→FR）。
+
+## 阶段 14：点头像弹简略资料卡 + 查看用户主页（2026-11-15）
+
+- [x] 聊天里点头像/名字弹简略资料卡（免费永远可看）：头像、显示名 + 国旗、
+      已填字段摘要；长简介约 80 字统一省略号截断，完整简介在主页；
+      没填的字段不摆空壳；点遮罩或关闭按钮关掉
+- [x] 资料卡上「查看主页」入口（i18n ×5）；主页为应用内全屏视图状态
+      （不新增 Worker 路由，聊天连接保持不断）：更大头像、显示名 + 国旗、
+      全部已填字段与完整简介；「返回聊天」关掉主页回到房间；
+      看自己时另给「编辑资料」打开已有设置面板
+- [x] 门禁挂钩：`src/client/profileHomeGate.ts` 的 canOpenProfileHome 是
+      「查看主页」唯一入口，现在永远放行；以后若要付费才能开主页只改这里，
+      简略资料卡不受影响；拒绝时预留不可打开状态（现阶段走不到）
+- [x] 数据复用房间成员档案（RoomMemberProfile），协议零改动、不塞头像字节
+      进消息；视觉沿用现有设计令牌，翻译主链条零改动
+
+落地说明：
+
+- 共用逻辑进 `src/client/profile.ts`：profileFieldRows（资料卡/主页同一套
+  字段行构建，可选 summarizeBio 截断简介）、genderLabel、summarizeBio。
+- 本地验证：typecheck/build 通过。
