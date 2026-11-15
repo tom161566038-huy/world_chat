@@ -1,7 +1,38 @@
+/*
+ * 视觉打磨：设计令牌统一进 :root，全站共用一套颜色 / 圆角 / 间距阶梯。
+ * 气质取向：国际沙龙刊物式的干净与秩序（暖纸底、暮蓝强调、衬线品牌标题），
+ * 不用亮蓝、不堆阴影。间距只用 4 / 8 / 12 / 16 / 24 / 32 / 48。
+ */
 :root {
-  font-family: system-ui, -apple-system, "PingFang SC", "Segoe UI", sans-serif;
-  color: #1f2430;
-  background: #f5f6fa;
+  /* 颜色令牌 */
+  --bg: #f6f3ee;            /* 暖纸色页面底 */
+  --bg-elevated: #fffcf8;   /* 抬起面：卡片、输入、顶栏 */
+  --ink: #1c1915;           /* 主文字 */
+  --ink-secondary: #5c574f; /* 小节标题、说明 */
+  --ink-muted: #8a847a;     /* 时间、人数、页脚、连接状态等元信息 */
+  --accent: #2c4a6e;        /* 暮蓝：链接 / 文字按钮 / 主按钮 */
+  --accent-strong: #223a57; /* 暮蓝加深：悬停 */
+  --accent-soft: #e8eef4;   /* 强调浅底：自己的气泡、选中提示 */
+  --accent-soft-deep: #d7e2ec;
+  --line: #e4dfd6;          /* 分割线 / 控件边框 */
+  --danger: #a0432f;
+  --danger-soft: #f7eae6;
+  --success: #3e6b4f;
+  --warning: #8a5a1e;
+  --warning-soft: #f6efe2;
+
+  /* 圆角：小组件 8px、卡片/表单 12px，全站统一 */
+  --radius-s: 8px;
+  --radius-m: 12px;
+
+  /* 字体栈：不引外链字体，衬线只给品牌名 / 页面主标题 */
+  --font-serif: "Iowan Old Style", "Palatino Linotype", "Songti SC",
+    "Hiragino Mincho ProN", "Noto Serif CJK SC", Georgia, serif;
+  --font-ui: system-ui, -apple-system, "PingFang SC", "Hiragino Sans", "Segoe UI", sans-serif;
+
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background: var(--bg);
 }
 
 * {
@@ -15,6 +46,13 @@ body {
   overflow-x: hidden;
 }
 
+/* 输入聚焦：一条礼貌的边框变化，全站一致 */
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .setup {
   max-width: 480px;
   margin: 0 auto;
@@ -22,8 +60,31 @@ body {
   padding: 32px max(20px, env(safe-area-inset-right)) 32px max(20px, env(safe-area-inset-left));
 }
 
+/* 品牌名 / 页面主标题：衬线，全站唯一的衬线落点 */
+h1 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--ink);
+}
+
 .subtitle {
-  color: #5a6072;
+  margin: 8px 0 0;
+  color: var(--ink-secondary);
+  line-height: 1.6;
+}
+
+/* 小节标题：同一档字号 / 字重 / 颜色（落地页步骤、房间列表、文档页） */
+.rooms h2,
+.landing .how h2,
+.doc h2 {
+  margin: 24px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-secondary);
 }
 
 /* 顶部标题行（界面小修复）：标题 + 紧凑语言切换器（常见右上） */
@@ -34,56 +95,46 @@ body {
   gap: 12px;
 }
 
-.page-top h1 {
-  margin: 0 0 0.67em;
-}
-
 .page-top .link {
   margin-top: 0;
 }
 
-/* 紧凑语言切换器：胶囊形小 select，不抢主内容 */
+/* 紧凑语言切换器：页眉里的精致小控件，胶囊形，不抢主内容 */
 .lang-switcher {
-  padding: 4px 30px 4px 10px;
+  padding: 4px 30px 4px 12px;
+  font-family: var(--font-ui);
   font-size: 13px;
-  color: #2c3040;
-  border: 1px solid #c9cedb;
+  color: var(--ink-secondary);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: #fff;
+  background: var(--bg-elevated);
+  cursor: pointer;
 }
 
+/* 入口表单（落地页） */
 .entry {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-top: 24px;
+  margin-top: 32px;
 }
 
 .entry label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   font-size: 14px;
+  color: var(--ink-secondary);
 }
 
 .entry input,
 .entry select {
   padding: 10px 12px;
   font-size: 16px;
-  border: 1px solid #c9cedb;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.entry button {
-  margin-top: 8px;
-  padding: 12px;
-  font-size: 16px;
-  border: none;
-  border-radius: 8px;
-  background: #4a6cf7;
-  color: #fff;
-  cursor: pointer;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-elevated);
 }
 
 /* 房间列表 */
@@ -91,30 +142,29 @@ body {
   margin-top: 24px;
 }
 
-/* 落地页（阶段 8）：这是什么 / 怎么用 */
-.landing .how .intro {
-  color: #1f2430;
-  line-height: 1.7;
+/* 落地页（阶段 8）：这是什么 / 怎么用，靠字体层级与留白说话 */
+.landing .how {
+  margin-top: 32px;
 }
 
-.landing .how h2 {
-  font-size: 16px;
-  color: #5a6072;
+.landing .how .intro {
+  color: var(--ink);
+  line-height: 1.7;
 }
 
 .landing .how ol {
   margin: 8px 0 0;
   padding-left: 20px;
-  color: #1f2430;
+  color: var(--ink);
   line-height: 1.8;
 }
 
 .enter-room-note {
   margin: 0;
   padding: 8px 12px;
-  border-radius: 8px;
-  background: #eef2ff;
-  color: #3b4dbb;
+  border-radius: var(--radius-s);
+  background: var(--accent-soft);
+  color: var(--accent);
   font-size: 14px;
 }
 
@@ -124,11 +174,11 @@ body {
   gap: 8px;
   align-items: center;
   font-size: 13px;
-  color: #9aa0b0;
+  color: var(--ink-muted);
 }
 
 .footer-links a {
-  color: #4a6cf7;
+  color: var(--accent);
 }
 
 /* 房间列表行：进入按钮 + 复制分享链接 */
@@ -142,19 +192,21 @@ body {
   flex: 1;
 }
 
+/* 次按钮档：极浅底、暮蓝字（复制链接） */
 .copy-link {
   flex-shrink: 0;
   padding: 0 12px;
-  border: 1px solid #e3e6ef;
-  border-radius: 10px;
-  background: #fff;
-  color: #4a6cf7;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-elevated);
+  color: var(--accent);
   font-size: 13px;
   cursor: pointer;
+  transition: border-color 0.15s ease;
 }
 
 .copy-link:hover {
-  border-color: #4a6cf7;
+  border-color: var(--accent);
 }
 
 /* 阶段 9：房间行元信息（在房人数 / 创建者 / 关闭倒计时） */
@@ -164,11 +216,11 @@ body {
   gap: 8px;
   margin-top: 4px;
   font-size: 12px;
-  color: #9aa0b0;
+  color: var(--ink-muted);
 }
 
 .occ-badge {
-  color: #4a6cf7;
+  color: var(--accent);
   font-weight: 500;
 }
 
@@ -180,21 +232,21 @@ body {
 
 .load-error,
 .create-error {
-  color: #c0392b;
+  color: var(--danger);
   font-size: 13px;
   margin: 8px 0;
 }
 
-/* 创建房间表单 */
+/* 创建房间表单：卡片 */
 .create-form {
   display: flex;
   flex-direction: column;
   gap: 12px;
   margin: 12px 0;
   padding: 16px;
-  border: 1px solid #e3e6ef;
-  border-radius: 12px;
-  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-elevated);
   text-align: left;
 }
 
@@ -202,8 +254,9 @@ body {
 .create-form label {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   font-size: 14px;
+  color: var(--ink-secondary);
 }
 
 .create-form input,
@@ -212,9 +265,10 @@ body {
   min-width: 0;
   padding: 10px 12px;
   font-size: 16px;
-  border: 1px solid #c9cedb;
-  border-radius: 8px;
-  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg-elevated);
 }
 
 /* 下拉原生箭头不贴右边、文字不被箭头压住（界面小修复） */
@@ -227,6 +281,38 @@ body {
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+/* 主按钮档：暮蓝底、浅色字、统一高度/圆角（创建、进入、发送、继续） */
+.entry button,
+.composer button,
+.form-actions > button:not(.link) {
+  padding: 10px 20px;
+  font-size: 15px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: var(--accent);
+  color: #f9f7f2;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.entry button,
+.composer button {
+  padding: 12px 20px;
+  font-size: 16px;
+}
+
+.entry button:hover,
+.composer button:hover,
+.form-actions > button:not(.link):hover {
+  background: var(--accent-strong);
+}
+
+.composer button:disabled {
+  background: var(--line);
+  color: var(--ink-muted);
+  cursor: not-allowed;
 }
 
 /* form-actions 里的 .link 与按钮垂直中线对齐：清掉 .link 的上边距 */
@@ -247,9 +333,9 @@ body {
 .created-panel {
   margin: 12px 0;
   padding: 16px;
-  border: 1px solid #cfe0ff;
-  border-radius: 12px;
-  background: #f0f5ff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-elevated);
   text-align: left;
 }
 
@@ -257,7 +343,7 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px;
   word-break: break-all;
-  color: #4a6cf7;
+  color: var(--accent);
 }
 
 /* 聊天：空房引导与关闭横幅（阶段 9） */
@@ -268,33 +354,27 @@ body {
   align-items: center;
   margin: 12px 0;
   padding: 12px;
-  border: 1px dashed #cfe0ff;
-  border-radius: 12px;
-  background: #f7faff;
-  color: #5b6478;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-elevated);
+  color: var(--ink-secondary);
   font-size: 13px;
 }
 
 .closed-banner {
-  background: #fff4e5;
-  color: #8a5300;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 /* 隐私/条款文档页 */
 .doc h2 {
-  font-size: 16px;
-  margin-bottom: 4px;
+  margin: 24px 0 8px;
 }
 
 .doc p {
   margin: 0 0 8px;
-  color: #3c4254;
+  color: var(--ink);
   line-height: 1.7;
-}
-
-.rooms h2 {
-  font-size: 16px;
-  color: #5a6072;
 }
 
 .rooms ul {
@@ -302,44 +382,52 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
+/* 房间卡片 */
 .room-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
   width: 100%;
-  padding: 14px 16px;
-  border: 1px solid #e3e6ef;
-  border-radius: 10px;
-  background: #fff;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-elevated);
   text-align: left;
   cursor: pointer;
+  transition: border-color 0.15s ease;
 }
 
 .room-item:hover {
-  border-color: #4a6cf7;
+  border-color: var(--accent);
 }
 
 .room-title {
   font-size: 16px;
   font-weight: 600;
+  color: var(--ink);
 }
 
 .room-topic {
   font-size: 13px;
-  color: #5a6072;
+  color: var(--ink-secondary);
 }
 
+/* 次按钮档（文字按钮）：无底、暮蓝字，悬停一条细下划线，全站一致 */
 .link {
   margin-top: 16px;
   padding: 0;
   border: none;
   background: none;
-  color: #4a6cf7;
+  color: var(--accent);
   font-size: 14px;
   cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
 }
 
 .chat-header .link {
@@ -367,13 +455,14 @@ body {
   gap: 8px;
   padding: 12px 16px;
   padding-top: calc(12px + env(safe-area-inset-top));
-  border-bottom: 1px solid #e3e6ef;
-  background: #fff;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-elevated);
 }
 
 .chat-title {
   font-weight: 600;
   font-size: 15px;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -392,17 +481,17 @@ body {
 
 /* 翻译中 / 翻译失败提示（别人的消息还没拿到译文时） */
 .tr-pending {
-  margin: 2px 0 0 4px;
+  margin: 4px 0 0 4px;
   font-size: 12px;
-  color: #9aa0b0;
+  color: var(--ink-muted);
 }
 
 .tr-failed {
-  margin: 2px 0 0 4px;
+  margin: 4px 0 0 4px;
   padding: 0;
   border: none;
   background: none;
-  color: #b36400;
+  color: var(--warning);
   font-size: 12px;
   cursor: pointer;
   text-align: left;
@@ -415,8 +504,8 @@ body {
 /* 断线提示横幅 */
 .offline-banner {
   padding: 8px 16px;
-  background: #fdeceb;
-  color: #b3261e;
+  background: var(--danger-soft);
+  color: var(--danger);
   font-size: 13px;
   text-align: center;
 }
@@ -424,8 +513,8 @@ body {
 /* 服务端错误提示（限频/超长/被过滤等），短暂展示后自动消失 */
 .error-toast {
   padding: 8px 16px;
-  background: #fff4e5;
-  color: #8a5300;
+  background: var(--warning-soft);
+  color: var(--warning);
   font-size: 13px;
   text-align: center;
 }
@@ -435,7 +524,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 2px 0 0 4px;
+  margin: 4px 0 0 4px;
   max-width: 100%;
   flex-wrap: wrap;
 }
@@ -443,36 +532,37 @@ body {
 .report-reason {
   padding: 4px 8px;
   font-size: 13px;
-  border: 1px solid #c9cedb;
-  border-radius: 6px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
   min-width: 0;
   flex: 1;
   max-width: 220px;
-  background: #fff;
+  background: var(--bg-elevated);
 }
 
 .report-note {
   font-size: 12px;
-  color: #9aa0b0;
+  color: var(--ink-muted);
 }
 
 .report-done {
   font-size: 12px;
-  color: #2e9e5b;
+  color: var(--success);
 }
 
 .report-failed {
   font-size: 12px;
-  color: #b3261e;
+  color: var(--danger);
 }
 
 .conn {
   font-size: 12px;
-  color: #9aa0b0;
+  color: var(--ink-muted);
 }
 
 .conn-open {
-  color: #2e9e5b;
+  color: var(--success);
 }
 
 .messages {
@@ -485,22 +575,23 @@ body {
 }
 
 .empty {
-  color: #9aa0b0;
+  color: var(--ink-muted);
   text-align: center;
 }
 
 .sender {
   font-size: 12px;
-  color: #5a6072;
+  color: var(--ink-secondary);
   margin-left: 4px;
 }
 
+/* 气泡：对方用抬起面，自己用暮蓝浅底，不大块亮蓝 */
 .bubble {
-  margin: 2px 0 0;
+  margin: 4px 0 0;
   padding: 8px 12px;
-  border-radius: 12px;
-  background: #fff;
-  border: 1px solid #e3e6ef;
+  border-radius: var(--radius-m);
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
   max-width: min(420px, 100%);
   word-break: break-word;
 }
@@ -510,8 +601,8 @@ body {
 }
 
 .mine .bubble {
-  background: #dce7ff;
-  border-color: #c3d4ff;
+  background: var(--accent-soft);
+  border-color: var(--accent-soft-deep);
 }
 
 .mine .sender {
@@ -526,10 +617,10 @@ body {
 /* 译文下方的“查看原文” */
 .toggle {
   padding: 0;
-  margin: 2px 0 0 4px;
+  margin: 4px 0 0 4px;
   border: none;
   background: none;
-  color: #4a6cf7;
+  color: var(--accent);
   font-size: 12px;
   cursor: pointer;
 }
@@ -539,9 +630,9 @@ body {
 }
 
 .original {
-  margin: 2px 0 0 4px;
+  margin: 4px 0 0 4px;
   font-size: 12px;
-  color: #9aa0b0;
+  color: var(--ink-muted);
   max-width: min(420px, 100%);
   word-break: break-word;
 }
@@ -551,30 +642,16 @@ body {
   gap: 8px;
   padding: 12px 16px;
   padding-bottom: calc(12px + env(safe-area-inset-bottom));
-  border-top: 1px solid #e3e6ef;
-  background: #fff;
+  border-top: 1px solid var(--line);
+  background: var(--bg-elevated);
 }
 
 .composer input {
   flex: 1;
   padding: 10px 12px;
   font-size: 16px;
-  border: 1px solid #c9cedb;
-  border-radius: 8px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg);
 }
-
-.composer button {
-  padding: 10px 20px;
-  font-size: 16px;
-  border: none;
-  border-radius: 8px;
-  background: #4a6cf7;
-  color: #fff;
-  cursor: pointer;
-}
-
-.composer button:disabled {
-  background: #b9c3e6;
-  cursor: not-allowed;
-}
-
