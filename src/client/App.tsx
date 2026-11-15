@@ -112,6 +112,7 @@ function RoomRoute({
       room={room}
       displayName={profile.displayName}
       language={profile.language}
+      onLanguageChange={(language) => onProfile({ ...profile, language })}
       onLeave={() => navigate("/")}
     />
   )
@@ -161,6 +162,7 @@ export default function App() {
       <Rooms
         profile={profile}
         onEnter={(slug) => navigate(`/r/${encodeURIComponent(slug)}`)}
+        onLanguageChange={(language) => setProfile({ ...profile, language })}
         onResetProfile={() => {
           // 更换身份（阶段 11）：展示档案和稳定访客 id 一起清，
           // 下次进入重新生成——旧 id 不再算同一个访客

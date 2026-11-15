@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import type { ClientEvent, ServerEvent } from "../shared/protocol"
 import type { ChatMessage, LanguageCode, MessageTranslation, Room } from "../shared/types"
 import { getVisitorId } from "./api"
+import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, sameLanguage, serverErrorMessage, t } from "./i18n"
 import { roomLink } from "./router"
 import { copyText } from "./share"
@@ -12,6 +13,8 @@ interface ChatProps {
   displayName: string
   language: LanguageCode
   onLeave: () => void
+  /** 顶部切换语言：上层写回 profile，language prop 变化会触发下方重连。 */
+  onLanguageChange: (language: LanguageCode) => void
 }
 
 type ConnectionState = "connecting" | "open" | "closed"
@@ -145,7 +148,7 @@ function MessageRow({
   )
 }
 
-export default function Chat({ room, displayName, language, onLeave }: ChatProps) {
+export default function Chat({ room, displayName, language, onLeave, onLanguageChange }: ChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   /** messageId -> 译文，原文广播后服务端会异步推送过来。 */
   const [translations, setTranslations] = useState<Record<string, MessageTranslation>>({})
@@ -168,6 +171,16 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
   const listRef = useRef<HTMLDivElement | null>(null)
   /** 已收到的最大消息 seq（阶段 11）：重连 join 带上它补拉断线期间错过的消息。 */
   const lastSeqRef = useRef(-1)
+
+  // 切换语言（界面小修复）：清掉旧语言的译文缓存并把游标重置为 -1，
+  // 随后 socket effect（依赖 language）重连时 join 不带 lastSeq，
+  // 服务端回放整套新语言的历史译文；消息本体在 history 合并里按 id
+  // 去重，聊天现场保留、不刷空。此 effect 需声明在 socket effect 之前。
+  useEffect(() => {
+    setTranslations({})
+    setFailedTranslations(new Set())
+    lastSeqRef.current = -1
+  }, [language])
 
   useEffect(() => {
     let disposed = false
@@ -357,6 +370,7 @@ export default function Chat({ room, displayName, language, onLeave }: ChatProps
           )}
         </span>
         <span className="header-right">
+          <LanguageSwitcher language={language} onChange={onLanguageChange} />
           <button className="toggle invite" onClick={copyInvite}>
             {inviteCopied ? t(language, "inviteCopied") : t(language, "inviteBtn")}
           </button>

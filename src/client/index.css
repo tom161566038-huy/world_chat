@@ -26,6 +26,32 @@ body {
   color: #5a6072;
 }
 
+/* 顶部标题行（界面小修复）：标题 + 紧凑语言切换器（常见右上） */
+.page-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-top h1 {
+  margin: 0 0 0.67em;
+}
+
+.page-top .link {
+  margin-top: 0;
+}
+
+/* 紧凑语言切换器：胶囊形小 select，不抢主内容 */
+.lang-switcher {
+  padding: 4px 30px 4px 10px;
+  font-size: 13px;
+  color: #2c3040;
+  border: 1px solid #c9cedb;
+  border-radius: 999px;
+  background: #fff;
+}
+
 .entry {
   display: flex;
   flex-direction: column;
@@ -172,10 +198,45 @@ body {
   text-align: left;
 }
 
+/* 左 label 右输入（含下拉），中间留间距，输入占满剩余宽度（界面小修复） */
+.create-form label {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 14px;
+}
+
+.create-form input,
+.create-form select {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  font-size: 16px;
+  border: 1px solid #c9cedb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+/* 下拉原生箭头不贴右边、文字不被箭头压住（界面小修复） */
+.entry select,
+.create-form select {
+  padding-right: 34px;
+}
+
 .form-actions {
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+/* form-actions 里的 .link 与按钮垂直中线对齐：清掉 .link 的上边距 */
+.form-actions .link {
+  margin-top: 0;
+}
+
+/* 列表页「换个身份」与「创建房间」拉开更疏朗的距离（不影响其它 .link） */
+.identity-link {
+  margin-top: 32px;
 }
 
 /* 创建成功面板：链接 + 进入/复制 */

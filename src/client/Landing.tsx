@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from "react"
 import type { LanguageCode, Room } from "../shared/types"
+import LanguageSwitcher from "./LanguageSwitcher"
 import { detectLanguage, htmlLangOf, LANGUAGES, roomMeta, t } from "./i18n"
 
 export interface Profile {
@@ -32,7 +33,11 @@ export default function Landing({ room, onSubmit }: LandingProps) {
 
   return (
     <main className="setup landing">
-      <h1>WorldChat</h1>
+      {/* 顶部切换器与下方表单选择器共用同一 language state，两边永远同步 */}
+      <div className="page-top">
+        <h1>WorldChat</h1>
+        <LanguageSwitcher language={language} onChange={setLanguage} />
+      </div>
       <p className="subtitle">{t(language, "tagline")}</p>
 
       <section className="how">

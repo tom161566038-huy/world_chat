@@ -9,6 +9,7 @@ import { BUILTIN_ROOMS } from "../shared/rooms"
 import type { LanguageCode, Room } from "../shared/types"
 import { createRoom, fetchRooms, getVisitorId } from "./api"
 import type { Profile } from "./Landing"
+import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, t } from "./i18n"
 import { roomLink } from "./router"
 import { copyText } from "./share"
@@ -28,6 +29,8 @@ interface RoomsProps {
   profile: Profile
   onEnter: (slug: string) => void
   onResetProfile: () => void
+  /** 顶部切换语言：上层写回 profile 持久化，整个界面立即跟随。 */
+  onLanguageChange: (language: LanguageCode) => void
 }
 
 function closesLabel(lang: LanguageCode, closesAt: number): string {
@@ -36,7 +39,7 @@ function closesLabel(lang: LanguageCode, closesAt: number): string {
   return t(lang, "closesInHours", { count: String(Math.ceil(minutes / 60)) })
 }
 
-export default function Rooms({ profile, onEnter, onResetProfile }: RoomsProps) {
+export default function Rooms({ profile, onEnter, onResetProfile, onLanguageChange }: RoomsProps) {
   const lang: LanguageCode = profile.language
   const [occupancy, setOccupancy] = useState<Record<string, number>>({})
   const [userRooms, setUserRooms] = useState<Room[]>([])
@@ -140,7 +143,10 @@ export default function Rooms({ profile, onEnter, onResetProfile }: RoomsProps) 
 
   return (
     <main className="setup">
-      <h1>WorldChat</h1>
+      <div className="page-top">
+        <h1>WorldChat</h1>
+        <LanguageSwitcher language={lang} onChange={onLanguageChange} />
+      </div>
       <p className="subtitle">{t(lang, "helloRooms", { name: profile.displayName })}</p>
       {loadFailed && <p className="load-error">{t(lang, "errLoadRooms")}</p>}
 
@@ -232,7 +238,8 @@ export default function Rooms({ profile, onEnter, onResetProfile }: RoomsProps) 
           </div>
         )}
 
-        <button className="link" onClick={onResetProfile}>
+        {/* 独立间距类：与「创建房间」拉开距离，不影响其它 .link */}
+        <button className="link identity-link" onClick={onResetProfile}>
           {t(lang, "changeIdentity")}
         </button>
       </div>
