@@ -43,6 +43,7 @@ interface Strings {
   // 落地页 / 入口
   tagline: string
   landingIntro: string
+  landingNote: string
   howTitle: string
   how1: string
   how2: string
@@ -172,9 +173,10 @@ interface Strings {
 
 const STRINGS: Record<string, Strings> = {
   zh: {
-    tagline: "用自己的语言聊天，看到大家的语言。",
+    tagline: "想和全世界的人聊天，却不会他们的语言？没关系。",
     landingIntro:
-      "WorldChat 是一个免费的跨语言聊天室：你用自己的语言打字，其他人自动看到译成他们语言的文本，每条消息都能查看原文。无需注册，手机上可添加到主屏当 App 用。",
+      "你说你的，对方自然能看懂。想来听听地球村里的人都在想什么，或者交个外国朋友？从这里就可以开始。",
+    landingNote: "免费，不用注册。也可以把网站加到手机主屏，当 App 来用。",
     howTitle: "怎么用",
     how1: "选好你的语言就能开始，会自动有一个游客名，随时可在设置里改成自己的昵称。",
     how2: "进入一个话题房间，或打开朋友分享给你的房间链接。",
@@ -293,9 +295,10 @@ const STRINGS: Record<string, Strings> = {
     editProfile: "编辑资料",
   },
   en: {
-    tagline: "Chat in your language — everyone reads in theirs.",
+    tagline: "Want to talk to people around the world, even if you don't share a language? That's okay.",
     landingIntro:
-      "WorldChat is a free multilingual chat room. Type in your own language and others automatically see your message translated into theirs — with the original always one tap away. No sign-up, and it installs to your phone's home screen.",
+      "Speak in your own words — they'll understand. Curious what people on the other side of the world are thinking, or just want to make a friend abroad? You can start right here.",
+    landingNote: "It's free, and you don't need an account. You can also add it to your phone's home screen.",
     howTitle: "How it works",
     how1: "Pick your language and jump in — you get a guest name and can set your own nickname anytime in Settings.",
     how2: "Join a topic room, or open a room link a friend shared with you.",
@@ -414,9 +417,11 @@ const STRINGS: Record<string, Strings> = {
     editProfile: "Edit profile",
   },
   ja: {
-    tagline: "自分の言語で話そう。みんなには自分の言語で見える。",
+    tagline: "言葉が通じなくても、世界中の人と話してみたい。大丈夫。",
     landingIntro:
-      "WorldChat は無料の多言語チャットルームです。自分の言語で入力すると、他の人には自動的にその言語に翻訳されて表示され、原文もいつでもワンタップで確認できます。登録不要で、スマホのホーム画面にアプリとして追加できます。",
+      "あなたは自分の言葉で話せばいい。相手には、その人の言葉で届きます。地球のどこかで今だれが何を思っているのか、気になりませんか。外国に友達を作ってみてもいい——ここから始められます。",
+    landingNote:
+      "無料で、登録は不要です。スマホのホーム画面に追加して、アプリのように使うこともできます。",
     howTitle: "使い方",
     how1: "言語を選ぶだけで始められます。ゲスト名が自動で付き、設定でいつでもニックネームに変更できます。",
     how2: "トピックの部屋に入るか、友達から共有された部屋のリンクを開きます。",
@@ -535,9 +540,10 @@ const STRINGS: Record<string, Strings> = {
     editProfile: "プロフィールを編集",
   },
   es: {
-    tagline: "Chatea en tu idioma: cada quien lee en el suyo.",
+    tagline: "¿Quieres hablar con gente de todo el mundo, aunque no hablen tu idioma? No pasa nada.",
     landingIntro:
-      "WorldChat es una sala de chat multilingüe y gratuita. Escribe en tu idioma y los demás ven automáticamente tu mensaje traducido al suyo, con el original siempre a un toque de distancia. Sin registro, y puedes instalarlo en la pantalla de inicio de tu móvil.",
+      "Tú habla a tu manera; ellos lo entenderán. Si te da curiosidad lo que piensan al otro lado del planeta, o simplemente quieres hacer un amigo en otro país, empieza aquí.",
+    landingNote: "Es gratis y no hace falta registrarse. También puedes añadirla a la pantalla de inicio del móvil.",
     howTitle: "Cómo funciona",
     how1: "Elige tu idioma y entra: recibirás un nombre de invitado y podrás poner tu apodo cuando quieras en Ajustes.",
     how2: "Entra en una sala por tema, o abre el enlace que te compartió alguien.",
@@ -656,9 +662,10 @@ const STRINGS: Record<string, Strings> = {
     editProfile: "Editar perfil",
   },
   fr: {
-    tagline: "Discutez dans votre langue — chacun lit dans la sienne.",
+    tagline: "Envie de parler avec des gens du monde entier, même sans langue commune ? Aucun problème.",
     landingIntro:
-      "WorldChat est un salon de discussion multilingue gratuit. Écrivez dans votre langue et les autres voient automatiquement votre message traduit dans la leur, l'original restant toujours à un geste. Sans inscription, et installable sur l'écran d'accueil du téléphone.",
+      "Parlez dans votre langue, ils vous comprendront. Envie de savoir ce que pensent les gens ailleurs dans le monde, ou de vous faire un ami à l’étranger ? C’est ici que ça commence.",
+    landingNote: "C’est gratuit, sans inscription. Vous pouvez aussi l’ajouter à l’écran d’accueil du téléphone.",
     howTitle: "Comment ça marche",
     how1: "Choisissez votre langue et entrez : un nom d'invité vous est attribué, et vous pouvez définir un pseudo à tout moment dans les Réglages.",
     how2: "Entrez dans un salon par thème, ou ouvrez le lien qu'on vous a partagé.",

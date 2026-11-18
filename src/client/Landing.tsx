@@ -43,17 +43,9 @@ export default function Landing({ room, onSubmit }: LandingProps) {
         <h1>WorldChat</h1>
         <LanguageSwitcher language={language} onChange={setLanguage} />
       </div>
-      <p className="subtitle">{t(language, "tagline")}</p>
-
-      <section className="how">
-        <p className="intro">{t(language, "landingIntro")}</p>
-        <h2>{t(language, "howTitle")}</h2>
-        <ol>
-          <li>{t(language, "how1")}</li>
-          <li>{t(language, "how2")}</li>
-          <li>{t(language, "how3")}</li>
-        </ol>
-      </section>
+      {/* 钩子文案紧跟标题：tagline 主句 + landingIntro 正文，让第一眼看到亮点 */}
+      <p className="landing-hook">{t(language, "tagline")}</p>
+      <p className="landing-body">{t(language, "landingIntro")}</p>
 
       <form
         className="entry"
@@ -88,7 +80,17 @@ export default function Landing({ room, onSubmit }: LandingProps) {
           </select>
         </label>
         <button type="submit">{t(language, "continueBtn")}</button>
+        <p className="landing-note">{t(language, "landingNote")}</p>
       </form>
+
+      <section className="how">
+        <h2>{t(language, "howTitle")}</h2>
+        <ol>
+          <li>{t(language, "how1")}</li>
+          <li>{t(language, "how2")}</li>
+          <li>{t(language, "how3")}</li>
+        </ol>
+      </section>
 
       <footer className="footer-links">
         <a href="/privacy">{t(language, "privacyLink")}</a>

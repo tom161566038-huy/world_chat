@@ -152,14 +152,33 @@ h1 {
   margin-top: 24px;
 }
 
-/* 落地页（阶段 8）：这是什么 / 怎么用，靠字体层级与留白说话 */
-.landing .how {
-  margin-top: 32px;
+/* 落地页钩子：紧跟标题，tagline 主句用主文字色稍突出，正文从容易读 */
+.landing-hook {
+  margin: 20px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink);
 }
 
-.landing .how .intro {
+.landing-body {
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.8;
   color: var(--ink);
-  line-height: 1.7;
+}
+
+/* 继续按钮下的次要说明（免费/免注册/加主屏），不抢钩子的风头 */
+.landing-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+}
+
+/* 落地页（阶段 8）：怎么用，靠字体层级与留白说话 */
+.landing .how {
+  margin-top: 32px;
 }
 
 .landing .how ol {
