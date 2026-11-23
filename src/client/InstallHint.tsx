@@ -5,18 +5,20 @@
  * - iOS Safari：给「分享 → 添加到主屏幕」步骤说明
  * - 其它浏览器：一句「用浏览器菜单添加到主屏幕」
  * 关闭状态存独立 key（worldchat:installHintDismissed），克制不打扰。
+ * beforeinstallprompt 由 installPrompt.ts 尽早捕获，避免挂载前丢失。
  */
 import { useEffect, useState } from "react"
 import type { LanguageCode } from "../shared/types"
 import { t } from "./i18n"
+import {
+  clearInstallPrompt,
+  getInstallPrompt,
+  subscribeInstallPrompt,
+  wasAppInstalled,
+  type InstallPromptEvent,
+} from "./installPrompt"
 
 const DISMISS_KEY = "worldchat:installHintDismissed"
-
-/** beforeinstallprompt 不在标准 DOM 类型里，只声明用到的成员。 */
-interface InstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>
-}
 
 function isStandalone(): boolean {
   const nav = navigator as Navigator & { standalone?: boolean }
@@ -34,22 +36,13 @@ function isIosSafari(): boolean {
 export default function InstallHint({ language }: { language: LanguageCode }) {
   const [standalone] = useState(isStandalone)
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === "1")
-  const [installed, setInstalled] = useState(false)
-  const [promptEvent, setPromptEvent] = useState<InstallPromptEvent | null>(null)
+  const [installed, setInstalled] = useState(wasAppInstalled)
+  const [promptEvent, setPromptEvent] = useState<InstallPromptEvent | null>(getInstallPrompt)
 
-  useEffect(() => {
-    const onPrompt = (e: Event) => {
-      e.preventDefault()
-      setPromptEvent(e as InstallPromptEvent)
-    }
-    const onInstalled = () => setInstalled(true)
-    window.addEventListener("beforeinstallprompt", onPrompt)
-    window.addEventListener("appinstalled", onInstalled)
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt)
-      window.removeEventListener("appinstalled", onInstalled)
-    }
-  }, [])
+  useEffect(() => subscribeInstallPrompt(() => {
+    setPromptEvent(getInstallPrompt())
+    if (wasAppInstalled()) setInstalled(true)
+  }), [])
 
   if (standalone || installed || dismissed) return null
 
@@ -68,7 +61,7 @@ export default function InstallHint({ language }: { language: LanguageCode }) {
     const choice = await promptEvent.userChoice.catch(() => null)
     // 每个事件只能 prompt 一次；装好了整条隐藏，拒绝了收起按钮留文字指引
     if (choice?.outcome === "accepted") setInstalled(true)
-    setPromptEvent(null)
+    clearInstallPrompt()
   }
 
   const text = promptEvent
