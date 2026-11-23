@@ -108,6 +108,13 @@ h1 {
   margin: 0;
 }
 
+/* 顶栏「离开」按钮：永远单行且不被挤压（人数徽章出现后也不换行），
+   空间不够时由 .chat-title 省略号消化 */
+.chat-header > .link {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* 紧凑语言切换器：页眉里的精致小控件，胶囊形，不抢主内容。
    箭头与右内边距不在这里写，统一走文件末尾的 select 控件规则 */
 .lang-switcher {
@@ -484,6 +491,9 @@ h1 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* 允许标题收缩到内容宽以下，空间不够时由房间名省略号，
+     不把「离开」和右侧按钮挤变形 */
+  min-width: 0;
 }
 
 .header-right {
