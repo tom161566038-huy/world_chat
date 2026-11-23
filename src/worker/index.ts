@@ -56,6 +56,124 @@ async function adminRoomReports(
   return { slug, kind, title, reports }
 }
 
+/** worldchat.chat 的香港 Caddy 反代出口公网 IPv4（该机无公网 IPv6）。 */
+const HK_CADDY_PROXY_IP = "119.28.55.95"
+
+/** 国家码统一规范化：两位大写字母，排除 XX/T1 等识别失败值。 */
+function normalizeCountry(raw: string | null | undefined): string | null {
+  const normalized = (raw ?? "").trim().toUpperCase()
+  return /^[A-Z]{2}$/.test(normalized) && normalized !== "XX" && normalized !== "T1"
+    ? normalized
+    : null
+}
+
+/** 合法公网 IPv4：排除私网、回环、链路本地、CGNAT、组播与保留段。 */
+function isPublicIpv4(ip: string): boolean {
+  const parts = ip.split(".")
+  if (parts.length !== 4) return false
+  const octets: number[] = []
+  for (const part of parts) {
+    if (!/^\d{1,3}$/.test(part)) return false
+    if (part.length > 1 && part.startsWith("0")) return false
+    const n = Number(part)
+    if (n > 255) return false
+    octets.push(n)
+  }
+  const a = octets[0] ?? -1
+  const b = octets[1] ?? -1
+  if (a === 0 || a === 10 || a === 127) return false
+  if (a === 172 && b >= 16 && b <= 31) return false
+  if (a === 192 && b === 168) return false
+  if (a === 169 && b === 254) return false
+  if (a === 100 && b >= 64 && b <= 127) return false
+  if (a >= 224) return false
+  return true
+}
+
+/** 合法公网 IPv6：借 URL 解析校验格式，排除回环、未指定、ULA 与链路本地。 */
+function isPublicIpv6(ip: string): boolean {
+  let hostname: string
+  try {
+    hostname = new URL(`http://[${ip}]/`).hostname
+  } catch {
+    return false
+  }
+  if (!hostname.startsWith("[") || !hostname.endsWith("]")) return false
+  const lower = hostname.slice(1, -1).toLowerCase()
+  if (lower === "::" || lower === "::1") return false
+  // IPv4 映射地址（::ffff:x.x.x.x 或十六进制 ::ffff:xxxx:xxxx）按内嵌 IPv4 判定
+  if (lower.startsWith("::ffff:")) {
+    const tail = lower.slice(7)
+    if (tail.includes(".")) return isPublicIpv4(tail)
+    const groups = tail.split(":")
+    const hi = groups.length === 2 ? parseInt(groups[0] ?? "", 16) : NaN
+    const lo = groups.length === 2 ? parseInt(groups[1] ?? "", 16) : NaN
+    if ([hi, lo].every((n) => !Number.isNaN(n) && n >= 0 && n <= 0xffff)) {
+      return isPublicIpv4(`${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`)
+    }
+    return false
+  }
+  const firstGroup = lower.split("::")[0]?.split(":")[0] ?? ""
+  if (firstGroup.length >= 2) {
+    const high = parseInt(firstGroup.slice(0, 2), 16)
+    if (!Number.isNaN(high)) {
+      if ((high & 0xfe) === 0xfc) return false // fc00::/7 ULA
+      if (high === 0xfe) return false // fe80::/10 链路本地（含 site-local）
+    }
+  }
+  return true
+}
+
+function isValidPublicClientIp(ip: string): boolean {
+  return ip.includes(":") ? isPublicIpv6(ip) : isPublicIpv4(ip)
+}
+
+/**
+ * 反代场景下的客户 IP → 国家码：免费 ipwho.is 为主、api.country.is 兜底，
+ * 约 800ms 超时，失败/超时返回 null（绝不退回代理所在的 HK）。
+ * 结果按 IP 用 Cache API 缓存（命中数小时、失败数分钟），降低外部依赖。
+ * 原始 IP 不写入日志与存储。
+ */
+async function lookupClientIpCountry(ip: string): Promise<string | null> {
+  const cacheKey = new Request(`https://geo.worldchat.internal/${ip}`)
+  const cached = await caches.default.match(cacheKey)
+  if (cached) {
+    return normalizeCountry(((await cached.json()) as { country?: string | null }).country)
+  }
+  const fetchCountry = async (endpoint: string, pick: (data: unknown) => string | null) => {
+    const controller = new AbortController()
+    setTimeout(() => controller.abort(), 800)
+    const response = await fetch(endpoint, { signal: controller.signal })
+    if (!response.ok) return null
+    return pick(await response.json())
+  }
+  let country: string | null = null
+  try {
+    country = await fetchCountry(
+      `https://ipwho.is/${ip}?fields=success,country_code`,
+      (data) => {
+        const d = data as { success?: boolean; country_code?: string }
+        return d.success === true ? d.country_code ?? null : null
+      },
+    )
+    if (!country) {
+      country = await fetchCountry(`https://api.country.is/${ip}`, (data) => {
+        return (data as { country?: string }).country ?? null
+      })
+    }
+  } catch {
+    country = null
+  }
+  const normalized = normalizeCountry(country)
+  await caches.default.put(
+    cacheKey,
+    new Response(JSON.stringify({ country: normalized }), {
+      headers: { "Cache-Control": normalized ? "max-age=21600" : "max-age=300" },
+    }),
+  )
+  return normalized
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
@@ -89,20 +207,32 @@ export default {
       return env.ROOM.get(id).fetch(new Request(forwardUrl, request))
     }
 
-    // 边缘国家码（游客身份阶段）：只用 Cloudflare 请求自带的 country，
-    // 不接付费 GeoIP；空/XX/T1 等识别失败返回 null，客户端不清已有国家码。
+    // 边缘国家码（游客身份阶段）。两条路径：
+    // 1. 走 worldchat.chat（香港 Caddy 反代 → workers.dev）：Cloudflare 看到的
+    //    连接方一律是香港机（cf.country 恒为 HK），不可信。只认 Cloudflare
+    //    自己设置的 CF-Connecting-IP，且仅当它等于已知反代出口时，才读取
+    //    Caddy 覆盖写入的 X-WorldChat-Client-IP（客户端伪造不了），校验为
+    //    公网 IP 后用免费接口解析国家；失败返回 null，绝不退回 HK。
+    //    不读 X-Forwarded-For（客户端可伪造并被追加）。
+    // 2. 直连 workers.dev（含本地 wrangler dev，无 CF-Connecting-IP）：
+    //    仍用 Cloudflare 请求自带的 country，不接付费 GeoIP。
+    // 两种路径识别失败都返回 null，客户端不清已有国家码；
     // 原始 IP 不写入存储、日志或档案。
     if (url.pathname === "/api/geo" && request.method === "GET") {
-      const cfCountry = request.cf?.country
-      const raw =
-        (typeof cfCountry === "string" ? cfCountry : "") ||
-        request.headers.get("cf-ipcountry") ||
-        ""
-      const normalized = raw.trim().toUpperCase()
-      const country =
-        /^[A-Z]{2}$/.test(normalized) && normalized !== "XX" && normalized !== "T1"
-          ? normalized
-          : null
+      let country: string | null = null
+      if (request.headers.get("cf-connecting-ip") === HK_CADDY_PROXY_IP) {
+        const clientIp = request.headers.get("x-worldchat-client-ip") ?? ""
+        if (isValidPublicClientIp(clientIp)) {
+          country = await lookupClientIpCountry(clientIp)
+        }
+      } else {
+        const cfCountry = request.cf?.country
+        const raw =
+          (typeof cfCountry === "string" ? cfCountry : "") ||
+          request.headers.get("cf-ipcountry") ||
+          ""
+        country = normalizeCountry(raw)
+      }
       return Response.json({ country })
     }
 

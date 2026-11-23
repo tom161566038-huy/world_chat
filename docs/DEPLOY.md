@@ -139,7 +139,8 @@ curl -H "x-admin-key: <密钥>" https://world-chat.world-chat.workers.dev/admin/
 2. Workers & Pages → world-chat → Settings → Domains & Routes →
    Add → Custom Domain，填如 `chat.example.com`，按提示完成。
 3. 代码无需改动：前端与 WebSocket 都走同源，绑定后自动生效；
-   `index.html` 里 Open Graph 的 `og:url` 记得同步替换成新域名。
+   `index.html` 里 Open Graph / twitter 卡片地址目前指向 `https://worldchat.chat/`，
+   再换域名时记得同步替换。
 
 ## 常见问题
 
