@@ -2,7 +2,8 @@
 // - 页面导航：网络优先，断网时回退到缓存的应用壳，再不行给离线页
 // - 静态资源（/assets/、图标等带哈希/不变的文件）：缓存优先 + 后台更新
 // - 不缓存 WebSocket 和跨域请求；离线发消息/翻译不在本阶段范围
-const CACHE = "worldchat-shell-v1"
+// v2：离线壳换成暖纸底/暮蓝配色并补安全区，升缓存名让旧客户端换新
+const CACHE = "worldchat-shell-v2"
 // Workers 静态资源会把 /offline.html 307 到 /offline（pretty URL），
 // 这里直接用 /offline，避免预缓存到重定向响应
 const SHELL = ["/", "/offline"]

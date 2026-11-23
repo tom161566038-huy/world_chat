@@ -56,8 +56,11 @@ select:focus {
 .setup {
   max-width: 480px;
   margin: 0 auto;
-  /* 左右留白取「常规内边距」与安全区（刘海/圆角横屏时）的较大值 */
-  padding: 32px max(20px, env(safe-area-inset-right)) 32px max(20px, env(safe-area-inset-left));
+  /* 四边都吃安全区：独立窗口（PWA）里顶部/底部不被刘海和 Home 条挡住；
+     浏览器里 env() 为 0，维持原来的 32px / 20px 视觉不变 */
+  padding:
+    calc(32px + env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+    calc(32px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
 }
 
 /* 品牌名 / 页面主标题：衬线，全站唯一的衬线落点 */
@@ -245,6 +248,13 @@ h1 {
   border-color: var(--accent);
 }
 
+/* 空房间的右侧按钮用邀请口吻：浅强调底，比「复制链接」更像主行动 */
+.copy-link--invite {
+  border-color: var(--accent-soft-deep);
+  background: var(--accent-soft);
+  font-weight: 500;
+}
+
 /* 阶段 9：房间行元信息（在房人数 / 创建者 / 关闭倒计时） */
 .room-meta {
   display: flex;
@@ -258,6 +268,36 @@ h1 {
 .occ-badge {
   color: var(--accent);
   font-weight: 500;
+}
+
+/* 有人的房间（大厅列表）：徽章暮蓝浅底胶囊 + 小圆点，一眼看到哪里在聊 */
+.occ-badge--live {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.occ-badge--live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* 空房间的在房提示弱化，不与「N 人在房」抢眼（聊天顶栏徽章仍用基础档） */
+.occ-badge--empty {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+.room-row--occupied .room-item {
+  border-color: var(--accent-soft-deep);
 }
 
 .chat-title .occ-badge {
@@ -378,19 +418,35 @@ h1 {
   color: var(--accent);
 }
 
-/* 聊天：空房引导与关闭横幅（阶段 9） */
+/* 聊天：空房引导与关闭横幅（阶段 9）。
+   引导用暮蓝浅底 + 主行动按钮：一个人的时候邀请是重点动作 */
 .invite-hint {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 8px 12px;
   align-items: center;
   margin: 12px 0;
   padding: 12px;
-  border: 1px dashed var(--line);
+  border: 1px solid var(--accent-soft-deep);
   border-radius: var(--radius-m);
-  background: var(--bg-elevated);
-  color: var(--ink-secondary);
+  background: var(--accent-soft);
+  color: var(--ink);
   font-size: 13px;
+}
+
+.invite-hint-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: var(--accent);
+  color: #f9f7f2;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.invite-hint-btn:hover {
+  background: var(--accent-strong);
 }
 
 .closed-banner {
@@ -1028,6 +1084,87 @@ h1 {
   display: block;
   width: fit-content;
   margin-top: 16px;
+}
+
+/* 最近去过的房间：大厅列表上方的胶囊快捷入口，点击与房间行同一条进入路径 */
+.recent-rooms h2 {
+  margin: 0 0 8px;
+}
+
+.recent-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recent-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.recent-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 安装到主屏幕引导条：一句话 + 可选主按钮 + 关闭，克制不做广告墙 */
+.install-hint {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-top: 24px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--bg-elevated);
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+
+.install-hint p {
+  flex: 1;
+  min-width: 180px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.install-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: var(--accent);
+  color: #f9f7f2;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.install-btn:hover {
+  background: var(--accent-strong);
+}
+
+.install-close {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: var(--ink-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.install-close:hover {
+  color: var(--ink);
 }
 
 /*

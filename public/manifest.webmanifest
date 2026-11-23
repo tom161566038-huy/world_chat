@@ -3,12 +3,14 @@
   "short_name": "WorldChat",
   "description": "用自己的语言聊天，大家看到的是他们自己的语言；每条消息都能查看原文。免费、免注册。",
   "lang": "zh-CN",
+  "id": "https://worldchat.chat/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone"],
   "orientation": "portrait",
-  "background_color": "#f5f6fa",
-  "theme_color": "#4a6cf7",
+  "background_color": "#f6f3ee",
+  "theme_color": "#f6f3ee",
   "icons": [
     {
       "src": "/icons/icon-192.png",

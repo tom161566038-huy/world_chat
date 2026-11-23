@@ -8,9 +8,11 @@ import { useCallback, useEffect, useState } from "react"
 import { BUILTIN_ROOMS } from "../shared/rooms"
 import type { LanguageCode, Profile, Room } from "../shared/types"
 import { createRoom, fetchRooms, getVisitorId } from "./api"
+import InstallHint from "./InstallHint"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, t } from "./i18n"
 import { displayNameOf, flagEmoji } from "./profile"
+import { loadRecentRooms } from "./recentRooms"
 import { roomLink } from "./router"
 import { copyText } from "./share"
 
@@ -61,6 +63,8 @@ export default function Rooms({
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [created, setCreated] = useState<Room | null>(null)
+  /** 最近去过的房间（进入房间时写入，大厅只读一次）。 */
+  const [recent] = useState(() => loadRecentRooms())
 
   const load = useCallback(async () => {
     const data = await fetchRooms()
@@ -124,30 +128,57 @@ export default function Rooms({
   }
 
   function roomRow(room: Room, titleText: string, topicText: string, meta?: string) {
+    const count = occupancy[room.slug] ?? 0
     return (
       <li key={room.slug}>
-        <div className="room-row">
+        <div className={count > 0 ? "room-row room-row--occupied" : "room-row"}>
           <button className="room-item" onClick={() => onEnter(room.slug)}>
             <span className="room-title">{titleText}</span>
             <span className="room-topic">{topicText}</span>
             <span className="room-meta">
-              <span className="occ-badge">
-                {t(lang, "occupants", { count: String(occupancy[room.slug] ?? 0) })}
+              <span
+                className={count > 0 ? "occ-badge occ-badge--live" : "occ-badge occ-badge--empty"}
+              >
+                {count > 0
+                  ? t(lang, "occupants", { count: String(count) })
+                  : t(lang, "occupantsEmpty")}
               </span>
               {meta ? <span className="closes-at">{meta}</span> : null}
             </span>
           </button>
+          {/* 空房间的右侧按钮换成邀请口吻（复制仍是同一条 /r/<slug> 链接） */}
           <button
-            className="copy-link"
+            className={count > 0 ? "copy-link" : "copy-link copy-link--invite"}
             onClick={() => copyRoomLink(room.slug)}
             title={roomLink(room.slug)}
           >
-            {copiedSlug === room.slug ? t(lang, "copied") : t(lang, "copyLink")}
+            {copiedSlug === room.slug
+              ? t(lang, "copied")
+              : count > 0
+                ? t(lang, "copyLink")
+                : t(lang, "inviteFriend")}
           </button>
         </div>
       </li>
     )
   }
+
+  // 同一分组内把有人的房间排到前面；排序稳定，同人数的相对顺序不变
+  const builtinSorted = [...BUILTIN_ROOMS].sort(
+    (a, b) => (occupancy[b.slug] ?? 0) - (occupancy[a.slug] ?? 0),
+  )
+  const userRoomsSorted = [...userRooms].sort(
+    (a, b) => (occupancy[b.slug] ?? 0) - (occupancy[a.slug] ?? 0),
+  )
+
+  // 最近去过：内置房始终可进；自建房从目录列表消失（关闭/过期）就不再展示
+  const recentRooms = recent
+    .flatMap((item) => {
+      const room = BUILTIN_ROOMS.find((r) => r.slug === item.slug) ??
+        userRooms.find((r) => r.slug === item.slug)
+      return room ? [{ slug: item.slug, title: roomMeta(lang, item.slug, room).title }] : []
+    })
+    .slice(0, 8)
 
   return (
     <main className="setup">
@@ -165,18 +196,31 @@ export default function Rooms({
       {loadFailed && <p className="load-error">{t(lang, "errLoadRooms")}</p>}
 
       <div className="rooms">
+        {recentRooms.length > 0 && (
+          <div className="recent-rooms">
+            <h2>{t(lang, "recentRoomsHeading")}</h2>
+            <div className="recent-chips">
+              {recentRooms.map((r) => (
+                <button key={r.slug} className="recent-chip" onClick={() => onEnter(r.slug)}>
+                  {r.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <h2>{t(lang, "roomsHeading")}</h2>
         <ul>
-          {BUILTIN_ROOMS.map((r) => {
+          {builtinSorted.map((r) => {
             const meta = roomMeta(lang, r.slug, r)
             return roomRow(r, meta.title, meta.topic)
           })}
         </ul>
 
         <h2>{t(lang, "userRoomsHeading")}</h2>
-        {userRooms.length > 0 && (
+        {userRoomsSorted.length > 0 && (
           <ul>
-            {userRooms.map((r) =>
+            {userRoomsSorted.map((r) =>
               roomRow(
                 r,
                 r.title,
@@ -261,6 +305,9 @@ export default function Rooms({
         <button className="link identity-link" onClick={onResetProfile}>
           {t(lang, "changeIdentity")}
         </button>
+
+        {/* 安装到主屏幕入口：已在独立窗口/已关闭时不渲染 */}
+        <InstallHint language={lang} />
       </div>
 
       <footer className="footer-links">

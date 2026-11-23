@@ -44,6 +44,11 @@ interface Strings {
   tagline: string
   landingIntro: string
   landingNote: string
+  // 安装到主屏幕（PWA）
+  installBtn: string
+  installHintText: string
+  installIosHint: string
+  installMenuHint: string
   howTitle: string
   how1: string
   how2: string
@@ -59,6 +64,8 @@ interface Strings {
   changeIdentity: string
   copyLink: string
   copied: string
+  inviteFriend: string
+  recentRoomsHeading: string
   // 房间不存在
   notFoundTitle: string
   notFoundBody: string // {room}
@@ -116,6 +123,7 @@ interface Strings {
   roomCreated: string
   createdBy: string // {name}
   occupants: string // {count}
+  occupantsEmpty: string
   closesInMinutes: string // {count}
   closesInHours: string // {count}
   errCreateRateLimited: string
@@ -177,6 +185,10 @@ const STRINGS: Record<string, Strings> = {
     landingIntro:
       "你说你的，对方自然能看懂。想来听听地球村里的人都在想什么，或者交个外国朋友？从这里就可以开始。",
     landingNote: "免费，不用注册。也可以把网站加到手机主屏，当 App 来用。",
+    installBtn: "安装到主屏幕",
+    installHintText: "把 WorldChat 加到主屏幕，下次打开更快。",
+    installIosHint: "在 Safari 底部点「分享 → 添加到主屏幕」，就能像 App 一样使用。",
+    installMenuHint: "在浏览器菜单里选「添加到主屏幕」即可安装。",
     howTitle: "怎么用",
     how1: "选好你的语言就能开始，会自动有一个游客名，随时可在设置里改成自己的昵称。",
     how2: "进入一个话题房间，或打开朋友分享给你的房间链接。",
@@ -191,6 +203,8 @@ const STRINGS: Record<string, Strings> = {
     changeIdentity: "换个身份",
     copyLink: "复制链接",
     copied: "已复制",
+    inviteFriend: "邀请朋友",
+    recentRoomsHeading: "最近去过",
     notFoundTitle: "找不到这个房间",
     notFoundBody: "房间「{room}」不存在，可能链接有误。",
     backToRooms: "回到房间列表",
@@ -251,6 +265,7 @@ const STRINGS: Record<string, Strings> = {
     roomCreated: "房间创建好了！到点关闭前都可以聊，把链接发给朋友吧：",
     createdBy: "{name} 创建",
     occupants: "{count} 人在房",
+    occupantsEmpty: "暂无在房",
     closesInMinutes: "{count} 分钟后关闭",
     closesInHours: "{count} 小时后关闭",
     errCreateRateLimited: "创建太频繁了，一小时后再试",
@@ -299,6 +314,10 @@ const STRINGS: Record<string, Strings> = {
     landingIntro:
       "Speak in your own words — they'll understand. Curious what people on the other side of the world are thinking, or just want to make a friend abroad? You can start right here.",
     landingNote: "It's free, and you don't need an account. You can also add it to your phone's home screen.",
+    installBtn: "Install to home screen",
+    installHintText: "Add WorldChat to your home screen — it opens faster next time.",
+    installIosHint: "In Safari, tap Share → “Add to Home Screen” to use it like an app.",
+    installMenuHint: "Use your browser menu's “Add to Home screen” to install.",
     howTitle: "How it works",
     how1: "Pick your language and jump in — you get a guest name and can set your own nickname anytime in Settings.",
     how2: "Join a topic room, or open a room link a friend shared with you.",
@@ -313,6 +332,8 @@ const STRINGS: Record<string, Strings> = {
     changeIdentity: "Change identity",
     copyLink: "Copy link",
     copied: "Copied",
+    inviteFriend: "Invite a friend",
+    recentRoomsHeading: "Recently visited",
     notFoundTitle: "Room not found",
     notFoundBody: "The room “{room}” doesn't exist — the link may be wrong.",
     backToRooms: "Back to rooms",
@@ -373,6 +394,7 @@ const STRINGS: Record<string, Strings> = {
     roomCreated: "Your room is ready! Share the link with friends — it stays open until closing time:",
     createdBy: "Created by {name}",
     occupants: "{count} in room",
+    occupantsEmpty: "Empty",
     closesInMinutes: "Closes in {count} min",
     closesInHours: "Closes in {count} h",
     errCreateRateLimited: "Creating too often — try again in an hour",
@@ -422,6 +444,10 @@ const STRINGS: Record<string, Strings> = {
       "あなたは自分の言葉で話せばいい。相手には、その人の言葉で届きます。地球のどこかで今だれが何を思っているのか、気になりませんか。外国に友達を作ってみてもいい——ここから始められます。",
     landingNote:
       "無料で、登録は不要です。スマホのホーム画面に追加して、アプリのように使うこともできます。",
+    installBtn: "ホーム画面に追加",
+    installHintText: "WorldChat をホーム画面に追加すると、次回すぐ開けます。",
+    installIosHint: "Safari の「共有 → ホーム画面に追加」から、アプリのように使えます。",
+    installMenuHint: "ブラウザのメニュー「ホーム画面に追加」からインストールできます。",
     howTitle: "使い方",
     how1: "言語を選ぶだけで始められます。ゲスト名が自動で付き、設定でいつでもニックネームに変更できます。",
     how2: "トピックの部屋に入るか、友達から共有された部屋のリンクを開きます。",
@@ -436,6 +462,8 @@ const STRINGS: Record<string, Strings> = {
     changeIdentity: "表示名を変える",
     copyLink: "リンクをコピー",
     copied: "コピーしました",
+    inviteFriend: "友達を招待",
+    recentRoomsHeading: "最近行った部屋",
     notFoundTitle: "部屋が見つかりません",
     notFoundBody: "「{room}」という部屋は存在しません。リンクが間違っているかもしれません。",
     backToRooms: "部屋の一覧に戻る",
@@ -496,6 +524,7 @@ const STRINGS: Record<string, Strings> = {
     roomCreated: "部屋ができました！閉鎖まで利用できるので、リンクを友達に送りましょう：",
     createdBy: "{name} さんが作成",
     occupants: "{count} 人在室中",
+    occupantsEmpty: "誰もいない",
     closesInMinutes: "あと {count} 分で閉鎖",
     closesInHours: "あと {count} 時間で閉鎖",
     errCreateRateLimited: "作成が多すぎます。1 時間ほど待ってからお試しください",
@@ -544,6 +573,10 @@ const STRINGS: Record<string, Strings> = {
     landingIntro:
       "Tú habla a tu manera; ellos lo entenderán. Si te da curiosidad lo que piensan al otro lado del planeta, o simplemente quieres hacer un amigo en otro país, empieza aquí.",
     landingNote: "Es gratis y no hace falta registrarse. También puedes añadirla a la pantalla de inicio del móvil.",
+    installBtn: "Instalar en pantalla de inicio",
+    installHintText: "Añade WorldChat a la pantalla de inicio: se abre más rápido.",
+    installIosHint: "En Safari, toca Compartir → «Añadir a pantalla de inicio» para usarla como una app.",
+    installMenuHint: "Instálala desde el menú del navegador: «Añadir a pantalla de inicio».",
     howTitle: "Cómo funciona",
     how1: "Elige tu idioma y entra: recibirás un nombre de invitado y podrás poner tu apodo cuando quieras en Ajustes.",
     how2: "Entra en una sala por tema, o abre el enlace que te compartió alguien.",
@@ -558,6 +591,8 @@ const STRINGS: Record<string, Strings> = {
     changeIdentity: "Cambiar identidad",
     copyLink: "Copiar enlace",
     copied: "Copiado",
+    inviteFriend: "Invitar a un amigo",
+    recentRoomsHeading: "Visitadas recientemente",
     notFoundTitle: "Sala no encontrada",
     notFoundBody: "La sala «{room}» no existe; puede que el enlace esté mal.",
     backToRooms: "Volver a las salas",
@@ -618,6 +653,7 @@ const STRINGS: Record<string, Strings> = {
     roomCreated: "¡Tu sala está lista! Comparte el enlace con tus amigos antes de que cierre:",
     createdBy: "Creada por {name}",
     occupants: "{count} en la sala",
+    occupantsEmpty: "Nadie todavía",
     closesInMinutes: "Cierra en {count} min",
     closesInHours: "Cierra en {count} h",
     errCreateRateLimited: "Estás creando demasiadas salas; espera una hora",
@@ -666,6 +702,10 @@ const STRINGS: Record<string, Strings> = {
     landingIntro:
       "Parlez dans votre langue, ils vous comprendront. Envie de savoir ce que pensent les gens ailleurs dans le monde, ou de vous faire un ami à l’étranger ? C’est ici que ça commence.",
     landingNote: "C’est gratuit, sans inscription. Vous pouvez aussi l’ajouter à l’écran d’accueil du téléphone.",
+    installBtn: "Installer sur l’écran d’accueil",
+    installHintText: "Ajoutez WorldChat à l’écran d’accueil : elle s’ouvre plus vite.",
+    installIosHint: "Dans Safari, touchez Partager → « Sur l’écran d’accueil » pour l’utiliser comme une app.",
+    installMenuHint: "Installez-la depuis le menu du navigateur : « Ajouter à l’écran d’accueil ».",
     howTitle: "Comment ça marche",
     how1: "Choisissez votre langue et entrez : un nom d'invité vous est attribué, et vous pouvez définir un pseudo à tout moment dans les Réglages.",
     how2: "Entrez dans un salon par thème, ou ouvrez le lien qu'on vous a partagé.",
@@ -680,6 +720,8 @@ const STRINGS: Record<string, Strings> = {
     changeIdentity: "Changer d'identité",
     copyLink: "Copier le lien",
     copied: "Copié",
+    inviteFriend: "Inviter un ami",
+    recentRoomsHeading: "Salons récents",
     notFoundTitle: "Salon introuvable",
     notFoundBody: "Le salon « {room} » n'existe pas — le lien est peut-être erroné.",
     backToRooms: "Retour aux salons",
@@ -740,6 +782,7 @@ const STRINGS: Record<string, Strings> = {
     roomCreated: "Votre salon est prêt ! Partagez le lien avec vos amis avant la fermeture :",
     createdBy: "Créé par {name}",
     occupants: "{count} dans le salon",
+    occupantsEmpty: "Vide",
     closesInMinutes: "Ferme dans {count} min",
     closesInHours: "Ferme dans {count} h",
     errCreateRateLimited: "Trop de créations — réessayez dans une heure",

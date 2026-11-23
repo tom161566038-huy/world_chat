@@ -15,6 +15,7 @@ import { getVisitorId } from "./api"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, sameLanguage, serverErrorMessage, t } from "./i18n"
 import { displayNameOf, flagEmoji, memberOf, profilePayloadOf } from "./profile"
+import { recordRecentRoom } from "./recentRooms"
 import { roomLink } from "./router"
 import { copyText } from "./share"
 import { wsUrl } from "./wsUrl"
@@ -453,6 +454,12 @@ export default function Chat({
   }
 
   const roomTitle = roomMeta(language, room.slug, room).title
+
+  // 成功打开房间（大厅进入或直链都会挂载到这里）：记进「最近去过」，
+  // 标题用当前语言看到的房间名；换语言重进只是刷新时间，无副作用。
+  useEffect(() => {
+    recordRecentRoom(room.slug, roomTitle)
+  }, [room.slug, roomTitle])
   const cardMember = cardUserId !== null ? memberForCard(cardUserId) : null
   const homeMember = homeUserId !== null ? memberForCard(homeUserId) : null
   const connLabel =
@@ -509,7 +516,7 @@ export default function Chat({
         {!roomClosed && occupantCount !== null && occupantCount <= 1 && (
           <div className="invite-hint">
             <span>{t(language, "inviteHint")}</span>
-            <button className="toggle" onClick={copyInvite}>
+            <button className="invite-hint-btn" onClick={copyInvite}>
               {inviteCopied ? t(language, "inviteCopied") : t(language, "inviteBtn")}
             </button>
           </div>

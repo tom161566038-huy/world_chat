@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from "react"
 import type { LanguageCode, Room } from "../shared/types"
+import InstallHint from "./InstallHint"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { detectLanguage, htmlLangOf, LANGUAGES, roomMeta, t } from "./i18n"
 import { guestName, guestSuffixOf } from "./profile"
@@ -91,6 +92,9 @@ export default function Landing({ room, onSubmit }: LandingProps) {
           <li>{t(language, "how3")}</li>
         </ol>
       </section>
+
+      {/* 安装到主屏幕入口：已在独立窗口/已关闭时不渲染 */}
+      <InstallHint language={language} />
 
       <footer className="footer-links">
         <a href="/privacy">{t(language, "privacyLink")}</a>

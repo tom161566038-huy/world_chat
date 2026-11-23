@@ -2,7 +2,9 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 与主应用一致：全屏吃安全区，配色走暖纸底/暮蓝令牌 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f6f3ee" />
     <title>WorldChat · 离线</title>
     <style>
       body {
@@ -11,9 +13,13 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-family: system-ui, -apple-system, "PingFang SC", "Segoe UI", sans-serif;
-        background: #f5f6fa;
-        color: #1f2430;
+        /* 安全区留白：独立窗口里不被刘海/Home 条挡住 */
+        padding: calc(32px + env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+          calc(32px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+        box-sizing: border-box;
+        font-family: system-ui, -apple-system, "PingFang SC", "Hiragino Sans", "Segoe UI", sans-serif;
+        background: #f6f3ee;
+        color: #1c1915;
       }
       .card {
         text-align: center;
@@ -24,17 +30,20 @@
         margin: 0 0 8px;
       }
       p {
-        color: #5a6072;
+        color: #5c574f;
         margin: 0 0 24px;
       }
       button {
         padding: 10px 24px;
         border: none;
         border-radius: 8px;
-        background: #4a6cf7;
-        color: #fff;
+        background: #2c4a6e;
+        color: #f9f7f2;
         font-size: 16px;
         cursor: pointer;
+      }
+      button:hover {
+        background: #223a57;
       }
     </style>
   </head>
