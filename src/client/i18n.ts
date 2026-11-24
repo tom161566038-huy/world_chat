@@ -76,6 +76,7 @@ interface Strings {
   // 页脚
   privacyLink: string
   termsLink: string
+  donateLink: string
   // 聊天
   leave: string
   connected: string
@@ -216,6 +217,7 @@ const STRINGS: Record<string, Strings> = {
     backToRooms: "回到房间列表",
     privacyLink: "隐私说明",
     termsLink: "服务条款",
+    donateLink: "请我们喝杯咖啡",
     leave: "← 离开",
     connected: "已连接",
     connecting: "连接中…",
@@ -348,6 +350,7 @@ const STRINGS: Record<string, Strings> = {
     backToRooms: "Back to rooms",
     privacyLink: "Privacy",
     termsLink: "Terms",
+    donateLink: "Buy us a coffee",
     leave: "← Leave",
     connected: "Connected",
     connecting: "Connecting…",
@@ -481,6 +484,7 @@ const STRINGS: Record<string, Strings> = {
     backToRooms: "部屋の一覧に戻る",
     privacyLink: "プライバシー",
     termsLink: "利用規約",
+    donateLink: "コーヒーをご馳走する",
     leave: "← 退出",
     connected: "接続中",
     connecting: "接続しています…",
@@ -613,6 +617,7 @@ const STRINGS: Record<string, Strings> = {
     backToRooms: "Volver a las salas",
     privacyLink: "Privacidad",
     termsLink: "Términos",
+    donateLink: "Invítanos a un café",
     leave: "← Salir",
     connected: "Conectado",
     connecting: "Conectando…",
@@ -745,6 +750,7 @@ const STRINGS: Record<string, Strings> = {
     backToRooms: "Retour aux salons",
     privacyLink: "Confidentialité",
     termsLink: "Conditions",
+    donateLink: "Offrez-nous un café",
     leave: "← Quitter",
     connected: "Connecté",
     connecting: "Connexion…",

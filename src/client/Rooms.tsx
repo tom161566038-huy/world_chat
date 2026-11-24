@@ -12,6 +12,7 @@ import InstallHint from "./InstallHint"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, t } from "./i18n"
 import { displayNameOf, flagEmoji } from "./profile"
+import { DONATE_URL } from "./links"
 import { loadRecentRooms } from "./recentRooms"
 import { roomLink } from "./router"
 import { copyText } from "./share"
@@ -314,6 +315,10 @@ export default function Rooms({
         <a href="/privacy">{t(lang, "privacyLink")}</a>
         <span aria-hidden="true">·</span>
         <a href="/terms">{t(lang, "termsLink")}</a>
+        <span aria-hidden="true">·</span>
+        <a href={DONATE_URL} target="_blank" rel="noopener noreferrer">
+          {t(lang, "donateLink")}
+        </a>
       </footer>
     </main>
   )
