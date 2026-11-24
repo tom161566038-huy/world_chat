@@ -388,10 +388,12 @@
   （26px/600），下接三条一句话亮点（`.landing-points`，accent 圆点）；
   landingIntro / landingNote / how 区块保留不动；index.html 的 title、
   description、og:title/og:description 同步换新卖点。
-- 捐赠（B，commit `b24837d`）：`src/client/links.ts` 集中放外链
-  （DONATE_URL 为 Buy me a coffee 占位，上线前需确认）；落地页与大厅
-  页脚各加第三项，`target="_blank" rel="noopener noreferrer"` 新标签
-  打开；PLAN.md「明确不做」注明站内不收款不记账。
+- 捐赠（B，commit `b24837d`；后续改为双通道）：`src/client/links.ts`
+  集中放外链。因 BMC 提现仅走 Stripe（不支持大陆个人），拆为
+  `DONATE_CN_URL`（爱发电，微信/支付宝付款）与 `DONATE_INTL_URL`
+  （PayPal.me，海外信用卡/PayPal 余额）两条占位链接，上线前需确认；
+  落地页与大厅页脚各加两项，`target="_blank" rel="noopener noreferrer"`
+  新标签打开；PLAN.md「明确不做」注明站内不收款不记账。
 - AI 场景房（C，commit 本次）：`BUILTIN_ROOMS` 追加 english / roleplay /
   smalltalk 三房（kind builtin，`BUILTIN_ROOM_IDS` 自动放行 /ws，
   大厅、/r/<slug>、recentRooms 零改动生效）；人设表 `AI_ROOM_AI`

@@ -12,7 +12,7 @@ import InstallHint from "./InstallHint"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, t } from "./i18n"
 import { displayNameOf, flagEmoji } from "./profile"
-import { DONATE_URL } from "./links"
+import { DONATE_CN_URL, DONATE_INTL_URL } from "./links"
 import { loadRecentRooms } from "./recentRooms"
 import { roomLink } from "./router"
 import { copyText } from "./share"
@@ -319,8 +319,12 @@ export default function Rooms({
         <span aria-hidden="true">·</span>
         <a href="/terms">{t(lang, "termsLink")}</a>
         <span aria-hidden="true">·</span>
-        <a href={DONATE_URL} target="_blank" rel="noopener noreferrer">
-          {t(lang, "donateLink")}
+        <a href={DONATE_CN_URL} target="_blank" rel="noopener noreferrer">
+          {t(lang, "donateCnLink")}
+        </a>
+        <span aria-hidden="true">·</span>
+        <a href={DONATE_INTL_URL} target="_blank" rel="noopener noreferrer">
+          {t(lang, "donateIntlLink")}
         </a>
       </footer>
     </main>

@@ -10,7 +10,7 @@ import LanguageSwitcher from "./LanguageSwitcher"
 import { detectLanguage, htmlLangOf, LANGUAGES, roomMeta, t } from "./i18n"
 import { guestName, guestSuffixOf } from "./profile"
 import { getVisitorId } from "./api"
-import { DONATE_URL } from "./links"
+import { DONATE_CN_URL, DONATE_INTL_URL } from "./links"
 
 export interface LandingResult {
   language: LanguageCode
@@ -107,8 +107,12 @@ export default function Landing({ room, onSubmit }: LandingProps) {
         <span aria-hidden="true">·</span>
         <a href="/terms">{t(language, "termsLink")}</a>
         <span aria-hidden="true">·</span>
-        <a href={DONATE_URL} target="_blank" rel="noopener noreferrer">
-          {t(language, "donateLink")}
+        <a href={DONATE_CN_URL} target="_blank" rel="noopener noreferrer">
+          {t(language, "donateCnLink")}
+        </a>
+        <span aria-hidden="true">·</span>
+        <a href={DONATE_INTL_URL} target="_blank" rel="noopener noreferrer">
+          {t(language, "donateIntlLink")}
         </a>
       </footer>
     </main>
