@@ -371,3 +371,13 @@
 - 共用逻辑进 `src/client/profile.ts`：profileFieldRows（资料卡/主页同一套
   字段行构建，可选 summarizeBio 截断简介）、genderLabel、summarizeBio。
 - 本地验证：typecheck/build 通过。
+
+## 阶段 15：落地页卖点 / 捐赠链接 / AI 场景房（2026-11-24）
+
+- [x] A. 落地页主标题卖点 + 三条亮点（自动翻译 / 免费免注册 / 可装主屏），
+      五语言同步，index.html 的 title/OG 描述一并换新
+- [ ] B. 页脚捐赠/打赏外部静态链接（Buy me a coffee 占位），PLAN.md
+      「明确不做」补注：只是第三方平台外链，站内不收款不记账
+- [ ] C. 内置 3 个 AI 场景房（英语会话 Emma / 旅行问路 Marco / 轻松闲聊 Luna），
+      AI 固定英语回复走现有翻译链；15s 节流 + 每房每日 200 条封顶；
+      前端 AI 徽章、隐私说明补披露

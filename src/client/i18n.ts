@@ -42,6 +42,9 @@ export interface DocSection {
 interface Strings {
   // 落地页 / 入口
   tagline: string
+  pointTranslate: string
+  pointFree: string
+  pointInstall: string
   landingIntro: string
   landingNote: string
   // 安装到主屏幕（PWA）
@@ -181,7 +184,10 @@ interface Strings {
 
 const STRINGS: Record<string, Strings> = {
   zh: {
-    tagline: "想和全世界的人聊天，却不会他们的语言？没关系。",
+    tagline: "和全世界的人，无障碍地聊起来",
+    pointTranslate: "消息自动实时翻译，各看各的母语",
+    pointFree: "免费，无需注册，打开就能聊",
+    pointInstall: "可加到手机主屏，像 App 一样用",
     landingIntro:
       "你说你的，对方自然能看懂。想来听听地球村里的人都在想什么，或者交个外国朋友？从这里就可以开始。",
     landingNote: "免费，不用注册。也可以把网站加到手机主屏，当 App 来用。",
@@ -310,7 +316,10 @@ const STRINGS: Record<string, Strings> = {
     editProfile: "编辑资料",
   },
   en: {
-    tagline: "Want to talk to people around the world, even if you don't share a language? That's okay.",
+    tagline: "Chat with the world, no language barrier",
+    pointTranslate: "Messages translate in real time — everyone reads in their own language",
+    pointFree: "Free, no sign-up — just open and chat",
+    pointInstall: "Add it to your home screen and use it like an app",
     landingIntro:
       "Speak in your own words — they'll understand. Curious what people on the other side of the world are thinking, or just want to make a friend abroad? You can start right here.",
     landingNote: "It's free, and you don't need an account. You can also add it to your phone's home screen.",
@@ -439,7 +448,10 @@ const STRINGS: Record<string, Strings> = {
     editProfile: "Edit profile",
   },
   ja: {
-    tagline: "言葉が通じなくても、世界中の人と話してみたい。大丈夫。",
+    tagline: "世界の人と、言葉の壁を越えて話そう",
+    pointTranslate: "メッセージは自動でリアルタイム翻訳。各自が母語で読める",
+    pointFree: "無料・登録不要。開くだけで話せる",
+    pointInstall: "ホーム画面に追加して、アプリのように使える",
     landingIntro:
       "あなたは自分の言葉で話せばいい。相手には、その人の言葉で届きます。地球のどこかで今だれが何を思っているのか、気になりませんか。外国に友達を作ってみてもいい——ここから始められます。",
     landingNote:
@@ -569,7 +581,10 @@ const STRINGS: Record<string, Strings> = {
     editProfile: "プロフィールを編集",
   },
   es: {
-    tagline: "¿Quieres hablar con gente de todo el mundo, aunque no hablen tu idioma? No pasa nada.",
+    tagline: "Habla con el mundo, sin barreras de idioma",
+    pointTranslate: "Los mensajes se traducen al instante: cada quien lee en su idioma",
+    pointFree: "Gratis y sin registro: abre y chatea",
+    pointInstall: "Añádelo a la pantalla de inicio y úsalo como una app",
     landingIntro:
       "Tú habla a tu manera; ellos lo entenderán. Si te da curiosidad lo que piensan al otro lado del planeta, o simplemente quieres hacer un amigo en otro país, empieza aquí.",
     landingNote: "Es gratis y no hace falta registrarse. También puedes añadirla a la pantalla de inicio del móvil.",
@@ -698,7 +713,10 @@ const STRINGS: Record<string, Strings> = {
     editProfile: "Editar perfil",
   },
   fr: {
-    tagline: "Envie de parler avec des gens du monde entier, même sans langue commune ? Aucun problème.",
+    tagline: "Discutez avec le monde, sans barrière de langue",
+    pointTranslate: "Les messages sont traduits en temps réel — chacun lit dans sa langue",
+    pointFree: "Gratuit, sans inscription — ouvrez et discutez",
+    pointInstall: "Ajoutez-le à l'écran d'accueil et servez-vous-en comme une app",
     landingIntro:
       "Parlez dans votre langue, ils vous comprendront. Envie de savoir ce que pensent les gens ailleurs dans le monde, ou de vous faire un ami à l’étranger ? C’est ici que ça commence.",
     landingNote: "C’est gratuit, sans inscription. Vous pouvez aussi l’ajouter à l’écran d’accueil du téléphone.",

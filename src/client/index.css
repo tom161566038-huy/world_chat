@@ -162,13 +162,39 @@ h1 {
   margin-top: 24px;
 }
 
-/* 落地页钩子：紧跟标题，tagline 主句用主文字色稍突出，正文从容易读 */
+/* 落地页钩子：紧跟标题，tagline 主标题卖点上字号加粗，正文从容易读 */
 .landing-hook {
   margin: 20px 0 0;
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.35;
   color: var(--ink);
+}
+
+/* 主标题下的三条一句话亮点：去掉默认列表样式，小圆点用品牌强调色 */
+.landing-points {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-points li {
+  position: relative;
+  padding-left: 18px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--ink);
+}
+
+.landing-points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.7em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 .landing-body {

@@ -44,8 +44,13 @@ export default function Landing({ room, onSubmit }: LandingProps) {
         <h1>WorldChat</h1>
         <LanguageSwitcher language={language} onChange={setLanguage} />
       </div>
-      {/* 钩子文案紧跟标题：tagline 主句 + landingIntro 正文，让第一眼看到亮点 */}
+      {/* 钩子文案紧跟标题：tagline 主句 + 三条亮点 + landingIntro 正文，让第一眼看到卖点 */}
       <p className="landing-hook">{t(language, "tagline")}</p>
+      <ul className="landing-points">
+        <li>{t(language, "pointTranslate")}</li>
+        <li>{t(language, "pointFree")}</li>
+        <li>{t(language, "pointInstall")}</li>
+      </ul>
       <p className="landing-body">{t(language, "landingIntro")}</p>
 
       <form
