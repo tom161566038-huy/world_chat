@@ -40,6 +40,14 @@ export interface RoomMemberProfile {
   job?: string
   hobbies?: string
   bio?: string
+  /** AI 场景房里的 AI 伙伴（阶段 15）：前端据此显示 AI 徽章、隐藏举报入口。 */
+  isAi?: boolean
+}
+
+/** AI 场景房的伙伴人设（阶段 15）：senderName 展示用，systemPrompt 为英文人设。 */
+export interface RoomAi {
+  senderName: string
+  systemPrompt: string
 }
 
 export interface Room {
@@ -56,6 +64,8 @@ export interface Room {
   createdByName?: string
   /** 当前在房人数（列表/标题展示用，随连接变化、可能短暂滞后）。 */
   occupantCount?: number
+  /** AI 场景房的人设（阶段 15）：有此字段的内置房会有 AI 伙伴参与对话。 */
+  ai?: RoomAi
 }
 
 export interface ChatMessage {

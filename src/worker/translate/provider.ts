@@ -201,8 +201,9 @@ function extractClients5Text(data: unknown): string {
 /**
  * 聊天模型响应解析：优先 OpenAI 兼容的 choices[0].message.content，
  * 再退到 Workers AI 历史上的 response / result / translated_text 等键。
+ * 阶段 15 起导出：AI 场景房的 maybeAiReply 也复用同一套形状兼容。
  */
-function extractChatText(output: unknown): string {
+export function extractChatText(output: unknown): string {
   if (typeof output === "string") return output.trim()
   if (!output || typeof output !== "object") return ""
   const record = output as Record<string, unknown>
@@ -224,8 +225,9 @@ function extractChatText(output: unknown): string {
 /**
  * 聊天模型偶尔不听话：给译文包引号、加「译文：」前缀、套 markdown 代码块，
  * 都剥掉；出现明显的拒答/解释性套话时返回空串，让链条走下一棒。
+ * 阶段 15 起导出：AI 场景房的回复同样过这层清洗。
  */
-function normalizeChatText(text: string): string {
+export function normalizeChatText(text: string): string {
   let out = text.trim()
   out = out.replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/, "")
   out = out.replace(/^(?:translation|译文|翻譯)\s*[:：]\s*/i, "")

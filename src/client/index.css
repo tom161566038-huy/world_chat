@@ -171,6 +171,20 @@ h1 {
   color: var(--ink);
 }
 
+/* AI 伙伴徽章（阶段 15）："AI" 字样五语言通用，胶囊样式沿用现有令牌 */
+.ai-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  vertical-align: middle;
+}
+
 /* 主标题下的三条一句话亮点：去掉默认列表样式，小圆点用品牌强调色 */
 .landing-points {
   margin: 14px 0 0;

@@ -134,7 +134,10 @@ export default function Rooms({
       <li key={room.slug}>
         <div className={count > 0 ? "room-row room-row--occupied" : "room-row"}>
           <button className="room-item" onClick={() => onEnter(room.slug)}>
-            <span className="room-title">{titleText}</span>
+            <span className="room-title">
+              {titleText}
+              {room.ai ? <span className="ai-badge">AI</span> : null}
+            </span>
             <span className="room-topic">{topicText}</span>
             <span className="room-meta">
               <span

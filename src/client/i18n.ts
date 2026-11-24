@@ -150,6 +150,13 @@ interface Strings {
   roomFoodTopic: string
   roomLanguageTitle: string
   roomLanguageTopic: string
+  // AI 场景房（阶段 15）
+  roomEnglishTitle: string
+  roomEnglishTopic: string
+  roomRoleplayTitle: string
+  roomRoleplayTopic: string
+  roomSmalltalkTitle: string
+  roomSmalltalkTopic: string
   // 游客身份 / 设置 / 资料卡
   settingsBtn: string
   settingsTitle: string
@@ -257,6 +264,12 @@ const STRINGS: Record<string, Strings> = {
     roomFoodTopic: "聊聊各地好吃的和家常菜",
     roomLanguageTitle: "语言交换",
     roomLanguageTopic: "互相教学，练口语练写作",
+    roomEnglishTitle: "英语会话",
+    roomEnglishTopic: "和 AI 伙伴 Emma 练日常英语",
+    roomRoleplayTitle: "旅行问路",
+    roomRoleplayTopic: "和 AI 伙伴 Marco 模拟问路、点餐、住店",
+    roomSmalltalkTitle: "轻松闲聊",
+    roomSmalltalkTopic: "和 AI 伙伴 Luna 日常闲聊解闷",
     userRoomsHeading: "自建房间",
     createRoom: "创建房间",
     roomTitleLabel: "房间标题",
@@ -390,6 +403,12 @@ const STRINGS: Record<string, Strings> = {
     roomFoodTopic: "Local dishes, street food and home cooking",
     roomLanguageTitle: "Language Exchange",
     roomLanguageTopic: "Teach each other — practice speaking and writing",
+    roomEnglishTitle: "English practice",
+    roomEnglishTopic: "Practice everyday English with AI partner Emma",
+    roomRoleplayTitle: "Travel role-play",
+    roomRoleplayTopic: "Directions, dining and hotels with AI partner Marco",
+    roomSmalltalkTitle: "Small talk",
+    roomSmalltalkTopic: "Light everyday chat with AI partner Luna",
     userRoomsHeading: "Community rooms",
     createRoom: "Create a room",
     roomTitleLabel: "Room title",
@@ -524,6 +543,12 @@ const STRINGS: Record<string, Strings> = {
     roomFoodTopic: "ご当地グルメや家庭料理の話題",
     roomLanguageTitle: "ランゲージエクスチェンジ",
     roomLanguageTopic: "教え合って、話す・書くを練習しよう",
+    roomEnglishTitle: "英語会話",
+    roomEnglishTopic: "AI パートナーの Emma と日常英語を練習しよう",
+    roomRoleplayTitle: "旅のロールプレイ",
+    roomRoleplayTopic: "AI パートナーの Marco と道尋ね・注文・チェックインを練習",
+    roomSmalltalkTitle: "軽い雑談",
+    roomSmalltalkTopic: "AI パートナーの Luna と気軽におしゃべり",
     userRoomsHeading: "みんなの部屋",
     createRoom: "部屋を作る",
     roomTitleLabel: "部屋の名前",
@@ -657,6 +682,12 @@ const STRINGS: Record<string, Strings> = {
     roomFoodTopic: "Platos locales, comida callejera y cocina casera",
     roomLanguageTitle: "Intercambio de idiomas",
     roomLanguageTopic: "Enseña y aprende: practica hablar y escribir",
+    roomEnglishTitle: "Práctica de inglés",
+    roomEnglishTopic: "Practica inglés cotidiano con la IA Emma",
+    roomRoleplayTitle: "Viajes: pedir indicaciones",
+    roomRoleplayTopic: "Direcciones, restaurantes y hoteles con la IA Marco",
+    roomSmalltalkTitle: "Charla ligera",
+    roomSmalltalkTopic: "Charla cotidiana con la IA Luna",
     userRoomsHeading: "Salas de la comunidad",
     createRoom: "Crear una sala",
     roomTitleLabel: "Título de la sala",
@@ -790,6 +821,12 @@ const STRINGS: Record<string, Strings> = {
     roomFoodTopic: "Plats locaux, street food et cuisine maison",
     roomLanguageTitle: "Échange linguistique",
     roomLanguageTopic: "Enseignez-vous mutuellement — pratiquez l'oral et l'écrit",
+    roomEnglishTitle: "Conversation anglaise",
+    roomEnglishTopic: "Entraînez-vous à l'anglais courant avec Emma, l'IA",
+    roomRoleplayTitle: "Voyage : demander son chemin",
+    roomRoleplayTopic: "Itinéraires, restaurants et hôtels avec Marco, l'IA",
+    roomSmalltalkTitle: "Papotage",
+    roomSmalltalkTopic: "Discussions légères du quotidien avec Luna, l'IA",
     userRoomsHeading: "Salons de la communauté",
     createRoom: "Créer un salon",
     roomTitleLabel: "Titre du salon",
@@ -891,6 +928,9 @@ export function roomMeta(
     travel: ["roomTravelTitle", "roomTravelTopic"],
     food: ["roomFoodTitle", "roomFoodTopic"],
     language: ["roomLanguageTitle", "roomLanguageTopic"],
+    english: ["roomEnglishTitle", "roomEnglishTopic"],
+    roleplay: ["roomRoleplayTitle", "roomRoleplayTopic"],
+    smalltalk: ["roomSmalltalkTitle", "roomSmalltalkTopic"],
   }
   const keys = keyMap[slug]
   if (!keys) return fallback
@@ -908,6 +948,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       ] },
       { h: "消息会交给翻译服务", p: [
         "为了让不同语言的人聊天，你发送的消息文本会交给机器翻译服务（当前包括 Cloudflare Workers AI、Google 与 MyMemory 的免费接口）生成译文，译文会缓存并展示给房间里其他人。",
+        "在 AI 场景房中，近期消息也会发给 Workers AI 用来生成 AI 伙伴的回复。",
         "请勿在聊天中发送密码、证件号等敏感个人信息——消息内容会经过上述第三方服务。",
       ] },
       { h: "举报记录", p: [
@@ -928,6 +969,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       ] },
       { h: "Messages go to translation services", p: [
         "To let people chat across languages, the text of your messages is sent to machine-translation services (currently free tiers of Cloudflare Workers AI, Google, and MyMemory) to produce translations, which are cached and shown to others in the room.",
+        "In AI-scenario rooms, recent messages are also sent to Workers AI to generate the AI companion's replies.",
         "Please don't send sensitive personal information such as passwords or ID numbers in chat — message text passes through the services above.",
       ] },
       { h: "Reports", p: [
@@ -948,6 +990,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       ] },
       { h: "メッセージは翻訳サービスに渡されます", p: [
         "異なる言語どうしの会話を可能にするため、メッセージ本文は機械翻訳サービス（現在は Cloudflare Workers AI・Google・MyMemory の無料枠）に送られて翻訳され、その訳文はキャッシュされて部屋の他の人に表示されます。",
+        "AI シナリオの部屋では、直近のメッセージは AI パートナーの返信生成のため Workers AI にも送られます。",
         "パスワードや身分証番号などの機密個人情報はチャットで送らないでください。本文は上記のサービスを経由します。",
       ] },
       { h: "通報記録", p: [
@@ -968,6 +1011,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       ] },
       { h: "Los mensajes pasan por servicios de traducción", p: [
         "Para que personas de distintos idiomas conversen, el texto de tus mensajes se envía a servicios de traducción automática (actualmente los niveles gratuitos de Cloudflare Workers AI, Google y MyMemory); las traducciones se guardan en caché y se muestran al resto de la sala.",
+        "En las salas con escenarios de IA, los mensajes recientes también se envían a Workers AI para generar las respuestas del compañero IA.",
         "No envíes en el chat información personal sensible como contraseñas o números de identidad: el texto pasa por los servicios anteriores.",
       ] },
       { h: "Denuncias", p: [
@@ -988,6 +1032,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       ] },
       { h: "Les messages passent par des services de traduction", p: [
         "Pour permettre des conversations multilingues, le texte de vos messages est envoyé à des services de traduction automatique (actuellement les offres gratuites de Cloudflare Workers AI, Google et MyMemory) ; les traductions sont mises en cache et affichées aux autres membres du salon.",
+        "Dans les salons à scénarios IA, les messages récents sont également envoyés à Workers AI pour générer les réponses du compagnon IA.",
         "N'envoyez pas en chat d'informations personnelles sensibles (mots de passe, numéros de pièce d'identité) : le texte transite par ces services.",
       ] },
       { h: "Signalements", p: [

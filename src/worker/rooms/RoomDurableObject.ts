@@ -1,4 +1,5 @@
 import type { ClientEvent, ProfilePayload, ServerEvent } from "../../shared/protocol"
+import { AI_ROOM_AI } from "../../shared/rooms"
 import type { OccupancyUpdate } from "../../shared/roomDirectory"
 import type {
   ChatMessage,
@@ -9,6 +10,8 @@ import type {
 import { findSpam } from "./moderation"
 import {
   createTranslateProvider,
+  extractChatText,
+  normalizeChatText,
   sameLanguage,
   type TranslateEnv,
 } from "../translate/provider"
@@ -174,6 +177,28 @@ function sanitizeProfile(
 
 /** 自建房间元数据键：{ closesAt }。内置房间不写这个键、不设 Alarm。 */
 const META_KEY = "room:meta"
+
+/**
+ * AI 场景房（阶段 15）：AI 伙伴的发送者 id 前缀。以它开头的消息不再触发
+ * AI 回复（防自激）；人设表在 src/shared/rooms.ts 的 AI_ROOM_AI。
+ */
+const AI_SENDER_PREFIX = "ai:"
+
+/** 每房间 AI 回复节流窗口：窗口内最多 1 条（键 `airate:`，复用 loadWindow）。 */
+const AI_RATE_WINDOW_MS = 15_000
+const AI_RATE_PREFIX = "airate:"
+
+/** 拼进 AI 上下文的近期消息条数。 */
+const AI_MAX_HISTORY = 10
+
+/** AI.run 竞速超时：AI binding 不吃 AbortSignal，沿用 provider 的竞速模式。 */
+const AI_TIMEOUT_MS = 20_000
+const AI_MAX_TOKENS = 400
+const AI_TEMPERATURE = 0.8
+
+/** 每房间每 UTC 日 AI 回复条数上限（键 `aiday:{date}:{slug}`），防 Neurons 额度打爆。 */
+const AI_DAILY_MAX = 200
+const AI_DAY_PREFIX = "aiday:"
 
 /**
  * 单房间 Durable Object：管理 WebSocket 连接、广播并持久化近期消息。
@@ -418,6 +443,14 @@ export class RoomDurableObject implements DurableObject {
         // 译文异步算好后只发给需要的人
         this.broadcast({ type: "message", message, seq })
         this.state.waitUntil(this.fanOutTranslations(message))
+        // AI 场景房（阶段 15）：真人的消息触发 AI 伙伴异步回复。
+        // 以 DO 自己的房间名查人设（不信任客户端 event.roomId）；
+        // AI 消息以 ai: 前缀开头，不会再触发（防自激）。AI.run 是 IO
+        // 等待，不吃 10ms CPU 预算，与 fanOutTranslations 同为 waitUntil。
+        const aiRoomId = this.state.id.name ?? ""
+        if (!message.senderId.startsWith(AI_SENDER_PREFIX) && AI_ROOM_AI.has(aiRoomId)) {
+          this.state.waitUntil(this.maybeAiReply(aiRoomId))
+        }
         return
       }
       case "leave": {
@@ -576,6 +609,103 @@ export class RoomDurableObject implements DurableObject {
       } catch {
         return // 连接已断开，停止补译
       }
+    }
+  }
+
+  /**
+   * AI 场景房（阶段 15）：有人发言后让 AI 伙伴回一句。全程异步，任何失败
+   * 只打日志（不携带消息原文），AI 沉默不影响房间主功能。
+   *
+   * 上下文：system 人设 + 最近 AI_MAX_HISTORY 条消息；用户消息带 `[名字]`
+   * 前缀以便模型区分多个说话人，连续同角色的消息合并成一条。
+   * 回复固定英语（人设末段要求），译文走现有翻译链给各用户母语。
+   */
+  private async maybeAiReply(roomId: string): Promise<void> {
+    const ai = AI_ROOM_AI.get(roomId)
+    if (!ai || this.closed) return
+    if (!this.env.AI) return
+    // 房里没人不回：AI 不对着空气说话，也省免费额度
+    if (this.sessions.size === 0) return
+
+    try {
+      // 每房间 15 秒最多 1 条。窗口戳在生成前写入（乐观占坑），
+      // 避免 DO 内两个并发回复竞速双发；失败代价只是窗口内沉默一次。
+      const now = Date.now()
+      const rateKey = AI_RATE_PREFIX + roomId
+      const window = await this.loadWindow(rateKey, now, AI_RATE_WINDOW_MS)
+      if (window.length >= 1) return
+      await this.state.storage.put(rateKey, [...window, now])
+
+      // 每房间每 UTC 日封顶，防止 Neurons 免费额度被打爆；顺手删前一日键
+      const utcDay = (t: number) => new Date(t).toISOString().slice(0, 10)
+      const dayKey = `${AI_DAY_PREFIX}${utcDay(now)}:${roomId}`
+      const used = (await this.state.storage.get<number>(dayKey)) ?? 0
+      if (used >= AI_DAILY_MAX) return
+      await this.state.storage.delete(`${AI_DAY_PREFIX}${utcDay(now - 86_400_000)}:${roomId}`)
+
+      // 拼上下文：历史按角色合并，用户消息带名字前缀
+      const history = await this.recentMessages(AI_MAX_HISTORY)
+      const context: Array<{ role: "user" | "assistant"; content: string }> = []
+      for (const { message } of history) {
+        const role: "user" | "assistant" = message.senderId.startsWith(AI_SENDER_PREFIX)
+          ? "assistant"
+          : "user"
+        const content =
+          role === "assistant"
+            ? message.sourceText
+            : `[${message.senderName}] ${message.sourceText}`
+        const last = context[context.length - 1]
+        if (last && last.role === role) last.content += `\n${content}`
+        else context.push({ role, content })
+      }
+      // 没有任何用户消息（例如只剩 AI 自己的存量）就不开口
+      if (!context.some((item) => item.role === "user")) return
+      // 尾部必须是 user：全 assistant 收尾时丢弃，等下一条真人消息
+      while (context.length > 0 && context[context.length - 1]?.role === "assistant") {
+        context.pop()
+      }
+      if (context.length === 0) return
+
+      // AI binding 不吃 AbortSignal，用竞速超时防止远端代理悬死（同 provider）
+      const output = await Promise.race([
+        this.env.AI.run("@cf/zai-org/glm-4.7-flash", {
+          messages: [{ role: "system", content: ai.systemPrompt }, ...context],
+          temperature: AI_TEMPERATURE,
+          max_tokens: AI_MAX_TOKENS,
+          chat_template_kwargs: { enable_thinking: false },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("AI 回复超时")), AI_TIMEOUT_MS),
+        ),
+      ])
+      // 复用翻译链的响应解析与清洗（剥引号/代码块、识别拒答套话），超长截断
+      const text = normalizeChatText(extractChatText(output)).slice(0, MAX_TEXT_LENGTH)
+      if (!text) return
+      // AI 的输出同样过垃圾过滤；closed 在生成后再查一次（等模型期间可能到点关闭）
+      if (findSpam(text) || this.closed) return
+
+      const seq = await this.nextSeq()
+      const message: ChatMessage = {
+        id: crypto.randomUUID(),
+        roomId,
+        senderId: AI_SENDER_PREFIX + roomId,
+        senderName: ai.senderName,
+        sourceLang: "en",
+        sourceText: text,
+        createdAt: Date.now(),
+      }
+      await this.state.storage.put(this.msgKey(seq), message)
+      await this.trimOldMessages()
+      // 日额计数只在真的发了消息后累加
+      await this.state.storage.put(dayKey, used + 1)
+      // AI 档案幂等写入（isAi 标记：前端显示徽章、隐藏举报）
+      await this.saveProfile({ userId: message.senderId, displayName: ai.senderName, isAi: true })
+      this.broadcast({ type: "member_profile", member: { userId: message.senderId, displayName: ai.senderName, isAi: true } })
+      this.broadcast({ type: "message", message, seq })
+      this.state.waitUntil(this.fanOutTranslations(message))
+    } catch (error) {
+      // 不带消息原文，只记房间与错误
+      console.error(`[ai] AI 伙伴回复失败: ${roomId}`, error)
     }
   }
 

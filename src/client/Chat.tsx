@@ -67,6 +67,7 @@ function SenderLine({
       <button type="button" className="sender sender-btn" onClick={() => onOpenCard(senderId)}>
         {name}
       </button>
+      {member?.isAi ? <span className="ai-badge">AI</span> : null}
       {flag ? <span className="flag">{flag}</span> : null}
     </span>
   )
@@ -151,7 +152,8 @@ function MessageRow({
         </>
       )}
 
-      {!mine && (
+      {/* AI 伙伴的消息不提供举报（成员档案带 isAi 标记，阶段 15） */}
+      {!mine && !member?.isAi && (
         <span className="report-area">
           {reportUi === "hidden" && (
             <button className="toggle" onClick={() => setReportUi("form")}>

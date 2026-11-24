@@ -378,6 +378,41 @@
       五语言同步，index.html 的 title/OG 描述一并换新
 - [x] B. 页脚捐赠/打赏外部静态链接（Buy me a coffee 占位），PLAN.md
       「明确不做」补注：只是第三方平台外链，站内不收款不记账
-- [ ] C. 内置 3 个 AI 场景房（英语会话 Emma / 旅行问路 Marco / 轻松闲聊 Luna），
+- [x] C. 内置 3 个 AI 场景房（英语会话 Emma / 旅行问路 Marco / 轻松闲聊 Luna），
       AI 固定英语回复走现有翻译链；15s 节流 + 每房每日 200 条封顶；
       前端 AI 徽章、隐私说明补披露
+
+落地说明（阶段 15）：
+
+- 落地页（A，commit `66bccd7`）：tagline 五语言改写为主标题卖点并上字号
+  （26px/600），下接三条一句话亮点（`.landing-points`，accent 圆点）；
+  landingIntro / landingNote / how 区块保留不动；index.html 的 title、
+  description、og:title/og:description 同步换新卖点。
+- 捐赠（B，commit `b24837d`）：`src/client/links.ts` 集中放外链
+  （DONATE_URL 为 Buy me a coffee 占位，上线前需确认）；落地页与大厅
+  页脚各加第三项，`target="_blank" rel="noopener noreferrer"` 新标签
+  打开；PLAN.md「明确不做」注明站内不收款不记账。
+- AI 场景房（C，commit 本次）：`BUILTIN_ROOMS` 追加 english / roleplay /
+  smalltalk 三房（kind builtin，`BUILTIN_ROOM_IDS` 自动放行 /ws，
+  大厅、/r/<slug>、recentRooms 零改动生效）；人设表 `AI_ROOM_AI`
+  （slug → RoomAi）是 Worker 侧唯一数据源，O(1) 查表。
+- AI 回复（RoomDurableObject.maybeAiReply）：send 后以 DO 自己的房间名
+  （不信任客户端 event.roomId）查人设，`ai:` 前缀消息不再触发（防自激）；
+  房里没人不回；每房 15 秒最多 1 条（`airate:` 窗口戳在生成前乐观写入，
+  防并发双发）；每房每 UTC 日 200 条封顶（`aiday:{date}:{slug}`，写入时
+  顺手删前一日键）；上下文 = system 人设 + 最近 10 条消息（用户消息带
+  `[名字]` 前缀、连续同角色合并、尾部必须 user）；AI.run 竞速 20s 超时、
+  max_tokens 400、temperature 0.8；复用 provider 的
+  extractChatText/normalizeChatText（已 export，剥引号/代码块、识别拒答
+  套话）后截断 500 字、过 findSpam、closed 复查；入库后广播
+  member_profile（isAi:true）+ message，译文走现有 fanOutTranslations
+  （sourceLang=en，各用户母语自动覆盖）。失败只打日志（不带消息原文）。
+- 前端：Chat.tsx AI 消息旁显示 `AI` 胶囊徽章（.ai-badge，accent 令牌）
+  且不显示举报入口；Rooms.tsx 内置房行标题旁同样显示徽章；i18n ×5 补
+  3 房标题/话题（roomMeta keyMap 同步）与隐私说明 AI 披露一句。
+- 本地验证：typecheck/build 通过；mock DO state + 假 WebSocket + mock AI
+  驱动真实 RoomDurableObject——AI 英语回复入库广播（带 seq/isAi 档案）、
+  system 人设与 [名字] 前缀上下文形状、15s 节流（窗口内第二条沉默、
+  过期恢复）、每日 200 条封顶、拒答套话不发消息、普通房 lobby 无 AI
+  行为，全部通过。真实 glm 回复质量与线上体验待部署后按 DEPLOY.md
+  清单复测。
