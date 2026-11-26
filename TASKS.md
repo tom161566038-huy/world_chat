@@ -391,7 +391,9 @@
 - 捐赠（B，commit `b24837d`；后续改为双通道）：`src/client/links.ts`
   集中放外链。因 BMC 提现仅走 Stripe（不支持大陆个人），拆为
   `DONATE_CN_URL`（爱发电，微信/支付宝付款）与 `DONATE_INTL_URL`
-  （PayPal.me，海外信用卡/PayPal 余额）两条占位链接，上线前需确认；
+  （Ko-fi `ko-fi.com/tom161566038`，海外访客刷卡或 PayPal 余额，钱直达
+  绑定的大陆个人 PayPal；PayPal.me 通道弃用，因个人账户提现仅 $35 电汇
+  且 Ko-fi 打赏体验更好）两条链接；上线前需小额实测 Ko-fi 到账；
   落地页与大厅页脚各加两项，`target="_blank" rel="noopener noreferrer"`
   新标签打开；PLAN.md「明确不做」注明站内不收款不记账。
 - AI 场景房（C，commit 本次）：`BUILTIN_ROOMS` 追加 english / roleplay /
