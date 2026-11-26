@@ -9,6 +9,7 @@ import { BUILTIN_ROOMS } from "../shared/rooms"
 import type { LanguageCode, Profile, Room } from "../shared/types"
 import { createRoom, fetchRooms, getVisitorId } from "./api"
 import InstallHint from "./InstallHint"
+import LandingIntro from "./LandingIntro"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, t } from "./i18n"
 import { displayNameOf, flagEmoji } from "./profile"
@@ -190,6 +191,8 @@ export default function Rooms({
         <h1>WorldChat</h1>
         <LanguageSwitcher language={lang} onChange={onLanguageChange} />
       </div>
+      {/* 与落地页共用的介绍块：老用户每次进大厅也能第一眼看到卖点 */}
+      <LandingIntro language={lang} />
       <p className="subtitle">
         {t(lang, "helloRooms", { name: displayNameOf(profile) })}
         {/* 国旗识别不到就不显示，不用占位旗 */}

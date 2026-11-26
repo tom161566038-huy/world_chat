@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react"
 import type { LanguageCode, Room } from "../shared/types"
 import InstallHint from "./InstallHint"
+import LandingIntro from "./LandingIntro"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { detectLanguage, htmlLangOf, LANGUAGES, roomMeta, t } from "./i18n"
 import { guestName, guestSuffixOf } from "./profile"
@@ -46,13 +47,7 @@ export default function Landing({ room, onSubmit }: LandingProps) {
         <LanguageSwitcher language={language} onChange={setLanguage} />
       </div>
       {/* 钩子文案紧跟标题：tagline 主句 + 三条亮点 + landingIntro 正文，让第一眼看到卖点 */}
-      <p className="landing-hook">{t(language, "tagline")}</p>
-      <ul className="landing-points">
-        <li>{t(language, "pointTranslate")}</li>
-        <li>{t(language, "pointFree")}</li>
-        <li>{t(language, "pointInstall")}</li>
-      </ul>
-      <p className="landing-body">{t(language, "landingIntro")}</p>
+      <LandingIntro language={language} />
 
       <form
         className="entry"
