@@ -270,6 +270,20 @@ export class RoomDurableObject implements DurableObject {
     }
     this.sessions.clear()
     this.notifyOccupancy()
+    // 关闭即销毁内容（2026-11-26 拍板）：自建房间到期关闭时清空消息、
+    // 译文、举报、成员档案与限流窗口，只留 room:meta 让 DO 重启后仍能
+    // 认出「已关闭」。内置房间没有 closesAt，不会走到这里。
+    await this.wipeRoomContent()
+  }
+
+  /** 清空本房全部存储键，仅保留 META_KEY（关闭态自识别）。分批删，遵守单次键数上限。 */
+  private async wipeRoomContent(): Promise<void> {
+    const keys = [...(await this.state.storage.list()).keys()].filter(
+      (key) => key !== META_KEY,
+    )
+    for (let i = 0; i < keys.length; i += 128) {
+      await this.state.storage.delete(keys.slice(i, i + 128))
+    }
   }
 
   /**
@@ -286,8 +300,13 @@ export class RoomDurableObject implements DurableObject {
     }
     this.closesAt = (await this.state.storage.get<{ closesAt: number }>(META_KEY))?.closesAt ?? null
     if (this.closesAt !== null) {
-      if (Date.now() >= this.closesAt) this.closed = true
-      else await this.state.storage.setAlarm(this.closesAt)
+      if (Date.now() >= this.closesAt) {
+        this.closed = true
+        // 已过关闭时间（例如 DO 休眠期间到点、Alarm 已消费过）：确保内容已销毁
+        await this.wipeRoomContent()
+      } else {
+        await this.state.storage.setAlarm(this.closesAt)
+      }
     }
   }
 

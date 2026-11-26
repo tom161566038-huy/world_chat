@@ -961,7 +961,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
     zh: [
       { h: "我们处理哪些信息", p: [
         "WorldChat 不设账号，不收集邮箱、手机号或支付信息。进入聊天时只需要一个显示名称和你的界面语言，它们保存在你浏览器的本地存储里，清除浏览器数据即删除。",
-        "你发送的消息（含发送者显示名称、语言、时间）会保存在房间所在的服务器存储中。每个房间只保留最近约 100 条消息和它们的译文，供后来进入的人查看。",
+        "你发送的消息（含发送者显示名称、语言、时间）会保存在房间所在的服务器存储中。每个房间只保留最近约 100 条消息和它们的译文，供后来进入的人查看；用户自建的房间到期关闭时，房内消息与相关记录会被删除。",
         "国家/地区与可选资料：我们根据 Cloudflare 边缘网络在你连接时推断的国家/地区显示国旗，不保存你的原始 IP 地址。你在设置里填写的可选资料（头像、昵称、性别、年龄等）仅存本地，并展示给你所在房间的其他人。",
       ] },
       { h: "消息会交给翻译服务", p: [
@@ -982,7 +982,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
     en: [
       { h: "What we process", p: [
         "WorldChat has no accounts. We don't collect email addresses, phone numbers, or payment information. Chatting only requires a display name and your interface language, both stored in your browser's local storage — clearing your browser data removes them.",
-        "Messages you send (with display name, language, and time) are kept in server storage for the room. Each room keeps only the most recent ~100 messages and their translations so later visitors can catch up.",
+        "Messages you send (with display name, language, and time) are kept in server storage for the room. Each room keeps only the most recent ~100 messages and their translations so later visitors can catch up; when a user-created room closes at its time limit, its messages and related records are deleted.",
         "Country/region and optional profile: your flag is inferred from the country Cloudflare's edge network sees when you connect; your raw IP address is never stored. Optional details you fill in Settings (avatar, nickname, gender, age, etc.) stay on your device and are shown to others in rooms you join.",
       ] },
       { h: "Messages go to translation services", p: [
@@ -1003,7 +1003,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
     ja: [
       { h: "扱う情報", p: [
         "WorldChat にはアカウントがなく、メールアドレス・電話番号・支払い情報は収集しません。チャットに必要なのは表示名とインターフェース言語だけで、どちらもブラウザのローカルストレージに保存されます。ブラウザのデータを削除すれば消えます。",
-        "送信したメッセージ（表示名・言語・時刻を含む）は、その部屋のサーバー保存領域に保存されます。各部屋には直近の約 100 件のメッセージとその翻訳だけが残り、後から入った人が会話を追えます。",
+        "送信したメッセージ（表示名・言語・時刻を含む）は、その部屋のサーバー保存領域に保存されます。各部屋には直近の約 100 件のメッセージとその翻訳だけが残り、後から入った人が会話を追えます。ユーザー作成の部屋は期限で閉じるとき、メッセージと関連記録が削除されます。",
         "国/地域と任意のプロフィール：国旗は、接続時に Cloudflare のエッジネットワークが推断した国/地域に基づいて表示され、元の IP アドレスは保存しません。設定で入力した任意のプロフィール（アイコン・ニックネーム・性別・年齢など）は端末内にのみ保存され、参加した部屋の他の人に表示されます。",
       ] },
       { h: "メッセージは翻訳サービスに渡されます", p: [
@@ -1024,7 +1024,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
     es: [
       { h: "Qué tratamos", p: [
         "WorldChat no tiene cuentas: no recopilamos correos, números de teléfono ni datos de pago. Para chatear solo hacen falta un nombre para mostrar y tu idioma, guardados en el almacenamiento local de tu navegador; borrar los datos del navegador los elimina.",
-        "Los mensajes que envías (con nombre, idioma y hora) se guardan en el almacenamiento del servidor de la sala. Cada sala conserva solo los últimos ~100 mensajes y sus traducciones, para que quien entre después pueda ponerse al día.",
+        "Los mensajes que envías (con nombre, idioma y hora) se guardan en el almacenamiento del servidor de la sala. Cada sala conserva solo los últimos ~100 mensajes y sus traducciones, para que quien entre después pueda ponerse al día; cuando una sala creada por usuarios se cierra al vencer su plazo, sus mensajes y registros relacionados se eliminan.",
         "País/región y perfil opcional: tu bandera se deduce del país que la red periférica de Cloudflare ve al conectarte; tu IP original nunca se guarda. Los datos opcionales que completes en Ajustes (avatar, apodo, género, edad, etc.) se guardan solo en tu dispositivo y se muestran a los demás en las salas en las que entres.",
       ] },
       { h: "Los mensajes pasan por servicios de traducción", p: [
@@ -1045,7 +1045,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
     fr: [
       { h: "Ce que nous traitons", p: [
         "WorldChat n'a pas de comptes : nous ne collectons ni e-mail, ni numéro de téléphone, ni informations de paiement. Discuter ne demande qu'un nom d'affichage et votre langue d'interface, conservés dans le stockage local de votre navigateur — effacer les données du navigateur les supprime.",
-        "Les messages que vous envoyez (avec nom, langue et horodatage) sont conservés dans le stockage du salon. Chaque salon ne garde que les ~100 derniers messages et leurs traductions, afin que les nouveaux arrivants puissent suivre.",
+        "Les messages que vous envoyez (avec nom, langue et horodatage) sont conservés dans le stockage du salon. Chaque salon ne garde que les ~100 derniers messages et leurs traductions, afin que les nouveaux arrivants puissent suivre ; quand un salon créé par un utilisateur se ferme à l'échéance, ses messages et données associées sont supprimés.",
         "Pays/région et profil facultatif : votre drapeau est déduit du pays que le réseau Edge de Cloudflare voit lors de la connexion ; votre adresse IP d'origine n'est jamais conservée. Les renseignements facultatifs saisis dans les Réglages (avatar, pseudo, genre, âge, etc.) restent sur votre appareil et sont montrés aux autres membres des salons que vous rejoignez.",
       ] },
       { h: "Les messages passent par des services de traduction", p: [
