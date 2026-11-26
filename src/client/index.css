@@ -20,6 +20,9 @@
   --success: #3e6b4f;
   --warning: #8a5a1e;
   --warning-soft: #f6efe2;
+  /* 有背景墙时界面铬的半透明暖纱（阶段 16），保证文字可读 */
+  --veil: rgba(255, 252, 248, 0.86);
+  --veil-accent: rgba(232, 238, 244, 0.86);
 
   /* 圆角：小组件 8px、卡片/表单 12px，全站统一 */
   --radius-s: 8px;
@@ -570,6 +573,59 @@ h1 {
   /* 横屏刘海/圆角留白，内容不被安全区挡住 */
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+  /* 背景墙（阶段 16）铺在内容下层的定位基准 */
+  position: relative;
+}
+
+/* 房间背景墙（阶段 16）：绝对铺满 + 内容层提级。SVG/图片 slice 裁切填满。 */
+.chat-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.chat-bg svg,
+.chat-bg img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 上传照片再叠一层白纱：深色照片上气泡文字仍可读 */
+.chat-bg--photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 252, 248, 0.55);
+}
+
+.chat-header,
+.messages,
+.composer,
+.offline-banner,
+.error-toast {
+  position: relative;
+  z-index: 1;
+}
+
+/* 有背景墙时：界面铬换半透明暖纱，气泡同底保持可读 */
+.chat.has-bg .chat-header {
+  background: var(--veil);
+}
+
+.chat.has-bg .composer {
+  background: var(--veil);
+}
+
+.chat.has-bg .bubble {
+  background: var(--veil);
+}
+
+.chat.has-bg .mine .bubble {
+  background: var(--veil-accent);
 }
 
 /* 聊天顶栏：布局与垂直居中走上面统一顶部栏规则，这里只留皮肤（留白/边线/底色） */
@@ -1225,4 +1281,83 @@ select,
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1.5l4 3.5 4-3.5' fill='none' stroke='%235c574f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
+}
+
+/*
+ * 房间主题选择（阶段 16）：建房表单与聊天页背景面板共用的缩略图栅格。
+ * 缩略图直接复用场景 SVG 组件（viewBox 800×600、slice 裁切）。
+ */
+.theme-field {
+  margin-top: 12px;
+}
+
+.theme-field-label {
+  display: block;
+  font-size: 14px;
+  color: var(--ink-secondary);
+  margin-bottom: 8px;
+}
+
+.theme-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.theme-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+  background: var(--bg-elevated);
+  cursor: pointer;
+}
+
+.theme-thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.theme-thumb--active {
+  border-color: var(--accent);
+}
+
+.theme-thumb-none {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* 背景面板的上传行：label 扮成主按钮，隐藏原生 file 输入 */
+.bg-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.bg-upload {
+  display: inline-block;
+  padding: 10px 20px;
+  font-size: 15px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: var(--accent);
+  color: #f9f7f2;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.bg-upload:hover {
+  background: var(--accent-strong);
+}
+
+.bg-upload input[type="file"] {
+  display: none;
 }

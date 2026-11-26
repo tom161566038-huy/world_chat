@@ -1,6 +1,8 @@
 import type { CreateRoomInput, OccupancyUpdate, RoomApiErrorCode, RoomsListResponse } from "../../shared/roomDirectory"
+import { isRoomThemeId, type RoomThemeId } from "../../shared/roomThemes"
 import { BUILTIN_ROOM_IDS } from "../../shared/rooms"
 import type { Room } from "../../shared/types"
+import { findSpam } from "./moderation"
 
 /**
  * 自建房间目录（阶段 9）：单一实例（idFromName("directory")）的 SQLite DO。
@@ -34,10 +36,16 @@ const TOPIC_MAX_CHARS = 80
 const NAME_MAX_CHARS = 20
 const CREATOR_ID_MAX_CHARS = 64
 
-/** 存储键：room:{slug} → 房间记录；occ:{slug} → 在房人数；rate:{creatorId} → 创建时间戳。 */
+/**
+ * 存储键：room:{slug} → 房间记录；occ:{slug} → 在房人数；rate:{creatorId} → 创建时间戳；
+ * creator:{slug} → 创建者访客 id（阶段 16）。creatorId 绝不放进 Room 记录——
+ * GET /api/room/:slug 会把 Room 原样发给所有客户端，泄露即可冒充房主；
+ * 需要判断身份的场合只在服务端比对，对外只回 isCreator 瞬态布尔。
+ */
 const ROOM_PREFIX = "room:"
 const OCC_PREFIX = "occ:"
 const RATE_PREFIX = "rate:"
+const CREATOR_PREFIX = "creator:"
 
 /**
  * 翻译统计（阶段 12）：
@@ -104,8 +112,14 @@ export class RoomDirectoryDurableObject implements DurableObject {
       return this.recordTranslateStats(request)
     }
     if (request.method === "GET" && url.pathname === "/stats") return this.translateStats()
+    if (request.method === "POST" && url.pathname === "/theme") return this.setTheme(request)
+    if (request.method === "POST" && url.pathname === "/verify-creator") {
+      return this.verifyCreator(request)
+    }
     const roomMatch = /^\/room\/([a-z0-9]+)$/.exec(url.pathname)
-    if (request.method === "GET" && roomMatch) return this.getRoom(roomMatch[1] ?? "")
+    if (request.method === "GET" && roomMatch) {
+      return this.getRoom(roomMatch[1] ?? "", url.searchParams.get("creator") ?? "")
+    }
     return errorResponse("not_found", 404)
   }
 
@@ -124,6 +138,15 @@ export class RoomDirectoryDurableObject implements DurableObject {
     const topic = (input.topic ?? "").trim()
     if (charLength(topic) > TOPIC_MAX_CHARS) {
       return errorResponse("invalid_topic", 400)
+    }
+    // 阶段 16：标题/话题补跑垃圾过滤——房间名是公开列表里的文字，
+    // 和聊天消息一个待遇（命中返回 filtered，不入目录）。
+    if (findSpam(title) || findSpam(topic)) return errorResponse("filtered", 400)
+    // 阶段 16：主题背景白名单校验（缺省 = 无背景）
+    let theme: RoomThemeId | undefined
+    if (input.theme !== undefined) {
+      if (!isRoomThemeId(input.theme)) return errorResponse("invalid_theme", 400)
+      theme = input.theme
     }
     if (!DURATION_PRESETS_MINUTES.includes(input.durationMinutes)) {
       return errorResponse("invalid_duration", 400)
@@ -165,8 +188,11 @@ export class RoomDirectoryDurableObject implements DurableObject {
       kind: "user",
       closesAt: now + input.durationMinutes * 60_000,
       createdByName: creatorName,
+      ...(theme ? { theme } : {}),
     }
     await this.state.storage.put(`${ROOM_PREFIX}${slug}`, room)
+    // 创建者 id 单独存（不进 Room 记录，见 CREATOR_PREFIX 注释）
+    await this.state.storage.put(`${CREATOR_PREFIX}${slug}`, creatorId)
     history.push(now)
     await this.state.storage.put(rateKey, history)
     return json({ room }, 201)
@@ -187,14 +213,79 @@ export class RoomDirectoryDurableObject implements DurableObject {
     return json(response)
   }
 
-  private async getRoom(slug: string): Promise<Response> {
+  private async getRoom(slug: string, creator = ""): Promise<Response> {
     if (!slug || BUILTIN_ROOM_IDS.has(slug)) return errorResponse("not_found", 404)
     const room = await this.state.storage.get<Room>(`${ROOM_PREFIX}${slug}`)
     if (!room) return errorResponse("not_found", 404)
     if (room.closesAt !== undefined && Date.now() >= room.closesAt) {
       return errorResponse("closed", 410)
     }
-    return json({ room }, 200)
+    // ?creator= 命中时附 isCreator 瞬态布尔（前端显示背景管理入口）。
+    // 不命中/不带参数时返回原记录，不泄露任何创建者信息。
+    const isCreator =
+      creator !== "" && (await this.state.storage.get<string>(`${CREATOR_PREFIX}${slug}`)) === creator
+    return json({ room: isCreator ? { ...room, isCreator: true } : room }, 200)
+  }
+
+  /**
+   * 房主换主题（阶段 16）：Worker 转发 POST /theme，body { slug, theme?, creatorId }。
+   * theme 缺省 = 清除主题。鉴权通过才更新 Room 记录；随后 Worker 会再把
+   * theme 同步到 Room DO 的 bg 键并广播（目录先写，DO 失败可重试自愈）。
+   */
+  private async setTheme(request: Request): Promise<Response> {
+    let body: { slug?: string; theme?: string | null; creatorId?: string }
+    try {
+      body = JSON.parse(await request.text()) as typeof body
+    } catch {
+      return errorResponse("bad_request", 400)
+    }
+    const slug = (body.slug ?? "").trim()
+    const creatorId = (body.creatorId ?? "").trim().slice(0, CREATOR_ID_MAX_CHARS)
+    if (!slug || !creatorId || BUILTIN_ROOM_IDS.has(slug)) return errorResponse("bad_request", 400)
+
+    const room = await this.state.storage.get<Room>(`${ROOM_PREFIX}${slug}`)
+    if (!room) return errorResponse("not_found", 404)
+    if (room.closesAt !== undefined && Date.now() >= room.closesAt) {
+      return errorResponse("closed", 410)
+    }
+    if ((await this.state.storage.get<string>(`${CREATOR_PREFIX}${slug}`)) !== creatorId) {
+      return errorResponse("forbidden", 403)
+    }
+
+    let theme: RoomThemeId | undefined
+    if (body.theme != null) {
+      if (!isRoomThemeId(body.theme)) return errorResponse("invalid_theme", 400)
+      theme = body.theme
+    }
+    const next: Room = { ...room }
+    if (theme) next.theme = theme
+    else delete next.theme
+    await this.state.storage.put(`${ROOM_PREFIX}${slug}`, next)
+    return new Response(null, { status: 204 })
+  }
+
+  /**
+   * 房主身份校验（阶段 16）：Worker 转发 POST /verify-creator，
+   * body { slug, creatorId }；命中 204，否则 403（房间不存在 404）。
+   * 上传自定义背景走这里（图片本体不经过目录，直进 Room DO）。
+   */
+  private async verifyCreator(request: Request): Promise<Response> {
+    let body: { slug?: string; creatorId?: string }
+    try {
+      body = JSON.parse(await request.text()) as typeof body
+    } catch {
+      return errorResponse("bad_request", 400)
+    }
+    const slug = (body.slug ?? "").trim()
+    const creatorId = (body.creatorId ?? "").trim().slice(0, CREATOR_ID_MAX_CHARS)
+    if (!slug || !creatorId || BUILTIN_ROOM_IDS.has(slug)) return errorResponse("bad_request", 400)
+    if (!(await this.state.storage.get<Room>(`${ROOM_PREFIX}${slug}`))) {
+      return errorResponse("not_found", 404)
+    }
+    if ((await this.state.storage.get<string>(`${CREATOR_PREFIX}${slug}`)) !== creatorId) {
+      return errorResponse("forbidden", 403)
+    }
+    return new Response(null, { status: 204 })
   }
 
   private async occupancy(request: Request): Promise<Response> {
@@ -309,7 +400,7 @@ export class RoomDirectoryDurableObject implements DurableObject {
     return json({ today, timezone: "America/New_York", days: sortedDays, failures })
   }
 
-  /** 删除已过期的自建房间记录（及其人数键），返回剩余活跃数。 */
+  /** 删除已过期的自建房间记录（及其人数键、创建者键），返回剩余活跃数。 */
   private async purgeExpired(now: number): Promise<number> {
     const entries = await this.state.storage.list<Room>({ prefix: ROOM_PREFIX })
     const expired: Room[] = []
@@ -322,6 +413,7 @@ export class RoomDirectoryDurableObject implements DurableObject {
           Promise.all([
             this.state.storage.delete(`${ROOM_PREFIX}${room.slug}`),
             this.state.storage.delete(`${OCC_PREFIX}${room.slug}`),
+            this.state.storage.delete(`${CREATOR_PREFIX}${room.slug}`),
           ]),
         ),
       )

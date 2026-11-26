@@ -1,4 +1,5 @@
-import type { ClientEvent, ProfilePayload, ServerEvent } from "../../shared/protocol"
+import type { ClientEvent, ProfilePayload, RoomBackgroundPayload, ServerEvent } from "../../shared/protocol"
+import { isRoomThemeId, type RoomThemeId } from "../../shared/roomThemes"
 import { AI_ROOM_AI, AI_SENDER_PREFIX } from "../../shared/rooms"
 import type { OccupancyUpdate } from "../../shared/roomDirectory"
 import type {
@@ -178,6 +179,24 @@ function sanitizeProfile(
 /** 自建房间元数据键：{ closesAt }。内置房间不写这个键、不设 Alarm。 */
 const META_KEY = "room:meta"
 
+/**
+ * 房间背景键（阶段 16）：{ theme?, image? }。theme = 内置 SVG 场景 id，
+ * image = 房主上传、经 Worker 预检与这里 sanitize 的压缩 dataURL。
+ * 房间关闭销毁时随 wipeRoomContent 一并删除（上传图的隐私承诺）。
+ */
+const BG_KEY = "bg"
+
+/** 上传图片 dataURL 的长度上限（≈220KB 二进制 base64 后），与前端压缩目标对齐。 */
+const MAX_BG_CHARS = 300_000
+
+/** dataURL 严格形状：只收 webp/jpeg/png 的纯 base64，杜绝拿它塞任意载荷。 */
+const BG_IMAGE_PATTERN = /^data:image\/(?:webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/
+
+/** 背景修改限流（阶段 16）：每房间 60 秒内最多 6 次（换主题/上传/删除都算）。 */
+const BG_RATE_MAX = 6
+const BG_RATE_WINDOW_MS = 60_000
+const BG_RATE_PREFIX = "bgrate:"
+
 /** 每房间 AI 回复节流窗口：窗口内最多 1 条（键 `airate:`，复用 loadWindow）。 */
 const AI_RATE_WINDOW_MS = 15_000
 const AI_RATE_PREFIX = "airate:"
@@ -241,6 +260,10 @@ export class RoomDurableObject implements DurableObject {
         const entries = await this.state.storage.list<ReportRecord>({ prefix: REPORT_PREFIX })
         const reports = [...entries.values()]
         return Response.json({ room: this.state.id.name ?? this.state.id.toString(), reports })
+      }
+      // 阶段 16：房间背景写入，仅由 Worker 的鉴权路由（房主校验后）转发过来
+      if (new URL(request.url).pathname === "/bg" && request.method === "POST") {
+        return this.setBackground(request)
       }
       return new Response("Expected WebSocket", { status: 426 })
     }
@@ -308,6 +331,75 @@ export class RoomDurableObject implements DurableObject {
         await this.state.storage.setAlarm(this.closesAt)
       }
     }
+    // 主题种子（阶段 16）：Worker 转发 /ws 前会清掉客户端伪造的 theme 参数、
+    // 只按目录记录回填；这里再验一次白名单，且只在从未写过 bg 键时播种
+    //（房主后续的换主题/清背景直接改 bg 键，种子不再插手）。
+    const themeParam = url ? url.searchParams.get("theme") : null
+    if (!this.closed && isRoomThemeId(themeParam) && (await this.state.storage.get(BG_KEY)) === undefined) {
+      await this.state.storage.put(BG_KEY, { theme: themeParam })
+    }
+  }
+
+  /**
+   * 房间背景写入（阶段 16）：body { theme?, image? }，字段出现才改、
+   * null/缺省 = 清除。调用前 Worker 已完成房主鉴权与长度预检；
+   * 这里再做形状 sanitize + 每房限流，然后落键并广播给房内所有人。
+   */
+  private async setBackground(request: Request): Promise<Response> {
+    if (this.closed) return Response.json({ error: "closed" }, { status: 410 })
+    let body: { theme?: string | null; image?: string | null }
+    try {
+      body = JSON.parse(await request.text()) as typeof body
+    } catch {
+      return Response.json({ error: "bad_request" }, { status: 400 })
+    }
+
+    // sanitize 先行：非法载荷直接拒绝，不占限流窗口也不落盘
+    let theme: RoomThemeId | undefined
+    let themeTouched = false
+    if ("theme" in body) {
+      themeTouched = true
+      if (body.theme != null) {
+        if (!isRoomThemeId(body.theme)) return Response.json({ error: "invalid_theme" }, { status: 400 })
+        theme = body.theme
+      }
+    }
+    let image: string | undefined
+    let imageTouched = false
+    if ("image" in body) {
+      imageTouched = true
+      if (body.image != null && body.image !== "") {
+        if (body.image.length > MAX_BG_CHARS || !BG_IMAGE_PATTERN.test(body.image)) {
+          return Response.json({ error: "bg_invalid" }, { status: 400 })
+        }
+        image = body.image
+      }
+    }
+    if (!themeTouched && !imageTouched) return Response.json({ error: "bad_request" }, { status: 400 })
+
+    // 每房限流：换主题/上传/删除共用一个窗口，防止刷写存储与广播
+    const now = Date.now()
+    const rateKey = BG_RATE_PREFIX + "room"
+    const window = await this.loadWindow(rateKey, now, BG_RATE_WINDOW_MS)
+    if (window.length >= BG_RATE_MAX) return Response.json({ error: "rate_limited" }, { status: 429 })
+    await this.state.storage.put(rateKey, [...window, now])
+
+    const current = (await this.state.storage.get<RoomBackgroundPayload>(BG_KEY)) ?? {}
+    const next: RoomBackgroundPayload = { ...current }
+    if (themeTouched) {
+      if (theme) next.theme = theme
+      else delete next.theme
+    }
+    if (imageTouched) {
+      if (image) next.image = image
+      else delete next.image
+    }
+    if (next.theme || next.image) await this.state.storage.put(BG_KEY, next)
+    else await this.state.storage.delete(BG_KEY)
+
+    if (themeTouched) this.broadcast({ type: "room_theme", theme: next.theme })
+    if (imageTouched) this.broadcast({ type: "room_background", image: next.image ?? null })
+    return new Response(null, { status: 204 })
   }
 
   private attach(server: WebSocket): void {
@@ -362,7 +454,15 @@ export class RoomDurableObject implements DurableObject {
           profile,
         }
         this.sessions.set(socket, session)
-        this.sendTo(socket, { type: "joined", roomId: event.roomId, userId: session.userId })
+        // 房间背景（阶段 16）：只随 joined 单发——上传图是大 dataURL，
+        // 不适合像主题那样每次变更都广播给所有人。
+        const background = await this.state.storage.get<RoomBackgroundPayload>(BG_KEY)
+        this.sendTo(socket, {
+          type: "joined",
+          roomId: event.roomId,
+          userId: session.userId,
+          ...(background ? { background } : {}),
+        })
         // 加入后回放消息：带 lastSeq 游标 = 重连补拉断线期间错过的；
         // 不带 = 初次进入，回放最近 N 条历史。已缓存的译文一并带上。
         const lastSeq = Number.isFinite(event.lastSeq) ? event.lastSeq : undefined

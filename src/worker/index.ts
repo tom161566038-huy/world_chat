@@ -181,6 +181,7 @@ export default {
     if (url.pathname === "/ws") {
       const roomId = url.searchParams.get("room") ?? ""
       let closesAt: number | undefined
+      let roomTheme: string | undefined
       if (BUILTIN_ROOM_IDS.has(roomId)) {
         // 内置房间始终开放，直接放行
       } else {
@@ -193,17 +194,24 @@ export default {
             status: 404,
           })
         }
-        const room = ((await dirResponse.json()) as { room?: { closesAt?: number } }).room
+        const room = ((await dirResponse.json()) as {
+          room?: { closesAt?: number; theme?: string }
+        }).room
         if (!room || typeof room.closesAt !== "number" || Date.now() >= room.closesAt) {
           return new Response("Room closed", { status: 404 })
         }
         closesAt = room.closesAt
+        roomTheme = room.theme
       }
       // 每个房间一个 Durable Object 实例，天然隔离连接与消息；
       // 自建房间把 closesAt 一并带给 DO（它据此设 Alarm、到点关闭）
       const id = env.ROOM.idFromName(roomId)
       const forwardUrl = new URL(request.url)
+      // 转发会透传客户端 query：theme 必须先清掉再按目录记录回填，
+      // 否则任何人都能用 ?theme= 给房间种一个伪造背景（阶段 16）
+      forwardUrl.searchParams.delete("theme")
       if (closesAt !== undefined) forwardUrl.searchParams.set("closesAt", String(closesAt))
+      if (roomTheme !== undefined) forwardUrl.searchParams.set("theme", roomTheme)
       return env.ROOM.get(id).fetch(new Request(forwardUrl, request))
     }
 
@@ -245,7 +253,74 @@ export default {
     }
     const roomMatch = /^\/api\/room\/([a-z0-9]+)$/.exec(url.pathname)
     if (roomMatch && request.method === "GET") {
-      return directoryStub(env).fetch(`https://directory/room/${roomMatch[1] ?? ""}`)
+      // ?creator= 由目录比对后附 isCreator 瞬态布尔（阶段 16，前端显示背景入口）
+      const creator = url.searchParams.get("creator")
+      const dirUrl = `https://directory/room/${roomMatch[1] ?? ""}${creator ? `?creator=${encodeURIComponent(creator)}` : ""}`
+      return directoryStub(env).fetch(dirUrl)
+    }
+
+    // 房间背景管理（阶段 16）：仅自建房间、仅房主。内置房间一律 404。
+    const roomBgMatch = /^\/api\/room\/([a-z0-9]+)\/(theme|background)$/.exec(url.pathname)
+    if (roomBgMatch && request.method === "POST") {
+      const slug = roomBgMatch[1] ?? ""
+      if (BUILTIN_ROOM_IDS.has(slug)) return new Response("Not Found", { status: 404 })
+      let body: { theme?: string | null; image?: string | null; creatorId?: string }
+      try {
+        body = JSON.parse(await request.text()) as typeof body
+      } catch {
+        return Response.json({ error: "bad_request" }, { status: 400 })
+      }
+      const creatorId = (body.creatorId ?? "").trim()
+      if (!creatorId) return Response.json({ error: "bad_request" }, { status: 400 })
+
+      if (roomBgMatch[2] === "theme") {
+        // 换主题：目录先鉴权并写 Room 记录，再同步 Room DO 的 bg 键并广播；
+        // DO 那步失败时房主重试即可自愈（目录是权威）。
+        const dirResponse = await directoryStub(env).fetch("https://directory/theme", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ slug, theme: body.theme ?? null, creatorId }),
+        })
+        if (!dirResponse.ok) {
+          const error = ((await dirResponse.json().catch(() => null)) as { error?: string } | null)
+            ?.error
+          return Response.json({ error: error ?? "bad_request" }, { status: dirResponse.status })
+        }
+        const stub = env.ROOM.get(env.ROOM.idFromName(slug))
+        const bgResponse = await stub.fetch("https://room/bg", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body.theme ? { theme: body.theme } : { theme: null }),
+        })
+        return bgResponse.ok
+          ? new Response(null, { status: 204 })
+          : new Response(null, { status: 502 })
+      }
+
+      // 上传/删除自定义图片：Worker 先按长度预检（大包不进鉴权），
+      // 再 verify-creator，最后才交给 Room DO sanitize + 限流。
+      const image = body.image ?? null
+      if (image !== null && image.length > 320_000) {
+        return Response.json({ error: "bg_too_large" }, { status: 400 })
+      }
+      const verify = await directoryStub(env).fetch("https://directory/verify-creator", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ slug, creatorId }),
+      })
+      if (!verify.ok) {
+        const error = ((await verify.json().catch(() => null)) as { error?: string } | null)?.error
+        return Response.json({ error: error ?? "forbidden" }, { status: verify.status })
+      }
+      const stub = env.ROOM.get(env.ROOM.idFromName(slug))
+      const bgResponse = await stub.fetch("https://room/bg", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ image }),
+      })
+      if (bgResponse.ok) return new Response(null, { status: 204 })
+      const error = ((await bgResponse.json().catch(() => null)) as { error?: string } | null)?.error
+      return Response.json({ error: error ?? "bad_request" }, { status: bgResponse.status })
     }
 
     // 只读翻译统计（阶段 12）：鉴权与 /admin/reports 对齐，未配置即 404。

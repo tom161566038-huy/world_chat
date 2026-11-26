@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { BUILTIN_ROOMS } from "../shared/rooms"
 import type { Profile, Room } from "../shared/types"
-import { fetchCountryCode, lookupRoom, resetVisitorId } from "./api"
+import { fetchCountryCode, getVisitorId, lookupRoom, resetVisitorId } from "./api"
 import Chat from "./Chat"
 import Docs from "./Docs"
 import Landing from "./Landing"
@@ -51,7 +51,9 @@ function RoomRoute({
     let cancelled = false
     setUserRoom(null)
     setLookupState("loading")
-    lookupRoom(slug).then((result) => {
+    // 带上访客 id：目录命中创建者时 room.isCreator 为真，
+    // 聊天页据此显示「背景」管理入口（阶段 16）。房主判定只在服务端。
+    lookupRoom(slug, getVisitorId()).then((result) => {
       if (cancelled) return
       if (result.status === "ok") {
         setUserRoom(result.room)

@@ -1,6 +1,13 @@
 /** WebSocket 协议。阶段 2 实现时按此扩展，保持向后兼容的字段名。 */
 
+import type { RoomThemeId } from "./roomThemes"
 import type { ChatMessage, LanguageCode, MessageTranslation, RoomMemberProfile } from "./types"
+
+/** 房间背景载荷（阶段 16）：theme = 内置 SVG 场景，image = 房主上传的压缩 dataURL。 */
+export interface RoomBackgroundPayload {
+  theme?: RoomThemeId
+  image?: string
+}
 
 /**
  * 随 join / profile 更新上报的档案载荷（游客身份阶段）：全部选填字段，
@@ -50,7 +57,16 @@ export type ClientEvent =
   | { type: "profile_update"; profile: ProfilePayload }
 
 export type ServerEvent =
-  | { type: "joined"; roomId: string; userId: string }
+  | {
+      type: "joined"
+      roomId: string
+      userId: string
+      /**
+       * 加入时的房间背景（阶段 16）：theme + 房主上传的图片 dataURL。
+       * 选填，旧客户端忽略；图片只随 joined 单发给新加入者。
+       */
+      background?: RoomBackgroundPayload
+    }
   | { type: "message"; message: ChatMessage; seq: number }
   | {
       type: "history"
@@ -75,6 +91,16 @@ export type ServerEvent =
   | { type: "presence"; count: number }
   /** 自建房间到点关闭（阶段 9）：收到后不能再发言，服务端随后会断开连接。 */
   | { type: "room_closed" }
+  /**
+   * 房间主题背景变更（阶段 16）：房主换主题/清主题时广播给房内所有人，
+   * theme 缺省 = 清除主题。
+   */
+  | { type: "room_theme"; theme?: RoomThemeId }
+  /**
+   * 房间上传背景变更（阶段 16）：房主上传/删除自定义图片时广播；
+   * image = 压缩 dataURL 或 null（删除，回落主题或无背景）。
+   */
+  | { type: "room_background"; image: string | null }
   /**
    * 某人的档案更新/加入（游客身份阶段）：广播给房内所有人；
    * 前端按 userId 缓存，用于消息头像/国旗与资料卡。

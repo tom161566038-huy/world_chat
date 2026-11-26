@@ -183,11 +183,21 @@ export function summarizeBio(bio: string, max = 80): string {
   return `${chars.slice(0, max).join("")}…`
 }
 
+/** 压缩参数：尺寸档（最长边 px）、质量档、dataURL 长度上限。 */
+export interface CompressImageOptions {
+  sizes: number[]
+  qualities: number[]
+  maxChars: number
+}
+
 /**
- * 上传头像的客户端压缩：最长边压到 192px，质量分档下探，
- * 直到 dataURL ≤ 约 100KB（与服务的 MAX_AVATAR_CHARS 对齐）；失败返回 null。
+ * 上传图片的客户端压缩（头像/房间背景共用）：按尺寸档缩放、质量档下探，
+ * 直到 dataURL ≤ maxChars；失败返回 null。
  */
-export async function compressAvatar(file: File): Promise<string | null> {
+export async function compressImage(
+  file: File,
+  opts: CompressImageOptions,
+): Promise<string | null> {
   if (!file.type.startsWith("image/")) return null
   const bitmap = await new Promise<HTMLImageElement | null>((resolve) => {
     const url = URL.createObjectURL(file)
@@ -204,10 +214,7 @@ export async function compressAvatar(file: File): Promise<string | null> {
   })
   if (!bitmap) return null
 
-  const MAX_CHARS = 140_000 // ≈100KB 二进制 base64 后的长度
-  const sizes = [192, 160, 128]
-  const qualities = [0.85, 0.7, 0.55, 0.4]
-  for (const size of sizes) {
+  for (const size of opts.sizes) {
     const scale = Math.min(1, size / Math.max(bitmap.width, bitmap.height))
     const w = Math.max(1, Math.round(bitmap.width * scale))
     const h = Math.max(1, Math.round(bitmap.height * scale))
@@ -217,13 +224,37 @@ export async function compressAvatar(file: File): Promise<string | null> {
     const ctx = canvas.getContext("2d")
     if (!ctx) return null
     ctx.drawImage(bitmap, 0, 0, w, h)
-    for (const q of qualities) {
+    for (const q of opts.qualities) {
       const type = canvas.toDataURL("image/webp", q).startsWith("data:image/webp")
         ? "image/webp"
         : "image/jpeg"
       const data = canvas.toDataURL(type, q)
-      if (data.length <= MAX_CHARS && data.startsWith("data:image/")) return data
+      if (data.length <= opts.maxChars && data.startsWith("data:image/")) return data
     }
   }
   return null
+}
+
+/**
+ * 头像压缩：最长边压到 192px，dataURL ≤ 约 100KB
+ * （与服务端的 MAX_AVATAR_CHARS 对齐）；失败返回 null。
+ */
+export async function compressAvatar(file: File): Promise<string | null> {
+  return compressImage(file, {
+    sizes: [192, 160, 128],
+    qualities: [0.85, 0.7, 0.55, 0.4],
+    maxChars: 140_000, // ≈100KB 二进制 base64 后的长度
+  })
+}
+
+/**
+ * 房间背景压缩（阶段 16）：最长边 1280px 起、dataURL ≤ 300k
+ * （与服务端的 MAX_BG_CHARS 对齐，Worker 预检线 320k）；失败返回 null。
+ */
+export async function compressBackground(file: File): Promise<string | null> {
+  return compressImage(file, {
+    sizes: [1280, 1024, 800],
+    qualities: [0.8, 0.65, 0.5],
+    maxChars: 300_000,
+  })
 }

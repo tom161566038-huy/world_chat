@@ -58,10 +58,15 @@ export type RoomLookup =
   | { status: "closed" }
   | { status: "not_found" }
 
-/** 查单个自建房间：/r/<slug> 进入时先核对，关掉的房间明确提示而不是连不上。 */
-export async function lookupRoom(slug: string): Promise<RoomLookup> {
+/**
+ * 查单个自建房间：/r/<slug> 进入时先核对，关掉的房间明确提示而不是连不上。
+ * creator（可选）：带上访客 id 时，目录命中创建者会在 room.isCreator 附真，
+ * 前端据此显示背景管理入口；不带则任何情况下都不出现该字段。
+ */
+export async function lookupRoom(slug: string, creator?: string): Promise<RoomLookup> {
   try {
-    const res = await fetch(`/api/room/${encodeURIComponent(slug)}`)
+    const query = creator ? `?creator=${encodeURIComponent(creator)}` : ""
+    const res = await fetch(`/api/room/${encodeURIComponent(slug)}${query}`)
     if (res.ok) {
       const body = (await res.json()) as { room?: Room }
       if (body.room) return { status: "ok", room: body.room }
@@ -91,5 +96,53 @@ export async function createRoom(input: CreateRoomInput): Promise<CreateResult> 
     return { ok: false, code: body?.error ?? "bad_request" }
   } catch {
     return { ok: false, code: "bad_request" }
+  }
+}
+
+/**
+ * 房间背景操作结果（阶段 16）：成功或带错误码（前端映射本地化文案）。
+ */
+export type RoomBgResult = { ok: true } | { ok: false; code: string }
+
+/** 房主换主题（theme 传 undefined/null = 恢复默认无背景）。 */
+export async function updateRoomTheme(
+  slug: string,
+  theme: string | null,
+  creatorId: string,
+): Promise<RoomBgResult> {
+  try {
+    const res = await fetch(`/api/room/${encodeURIComponent(slug)}/theme`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ theme, creatorId }),
+    })
+    if (res.ok) return { ok: true }
+    const body = (await res.json().catch(() => null)) as { error?: string } | null
+    return { ok: false, code: body?.error ?? "bad_request" }
+  } catch {
+    return { ok: false, code: "network" }
+  }
+}
+
+/**
+ * 房主上传自定义背景（image = 压缩 dataURL；null = 删除，回落主题/无背景）。
+ * 成功后全房广播 room_background。
+ */
+export async function uploadRoomBackground(
+  slug: string,
+  image: string | null,
+  creatorId: string,
+): Promise<RoomBgResult> {
+  try {
+    const res = await fetch(`/api/room/${encodeURIComponent(slug)}/background`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ image, creatorId }),
+    })
+    if (res.ok) return { ok: true }
+    const body = (await res.json().catch(() => null)) as { error?: string } | null
+    return { ok: false, code: body?.error ?? "bad_request" }
+  } catch {
+    return { ok: false, code: "network" }
   }
 }

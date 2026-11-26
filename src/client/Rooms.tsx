@@ -5,6 +5,7 @@
  * 之后每 12 秒或窗口重新可见时刷新，不为大厅单独开 WebSocket。
  */
 import { useCallback, useEffect, useState } from "react"
+import type { RoomThemeId } from "../shared/roomThemes"
 import { BUILTIN_ROOMS } from "../shared/rooms"
 import type { LanguageCode, Profile, Room } from "../shared/types"
 import { createRoom, fetchRooms, getVisitorId } from "./api"
@@ -12,6 +13,7 @@ import InstallHint from "./InstallHint"
 import LandingIntro from "./LandingIntro"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, t } from "./i18n"
+import { ROOM_THEME_OPTIONS } from "./roomThemes"
 import { displayNameOf, flagEmoji } from "./profile"
 import { DONATE_CN_URL, DONATE_INTL_URL } from "./links"
 import { loadRecentRooms } from "./recentRooms"
@@ -62,6 +64,8 @@ export default function Rooms({
   const [title, setTitle] = useState("")
   const [topic, setTopic] = useState("")
   const [duration, setDuration] = useState(180)
+  /** 房间主题背景（阶段 16）：undefined = 默认（无背景）。 */
+  const [theme, setTheme] = useState<RoomThemeId | undefined>(undefined)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [created, setCreated] = useState<Room | null>(null)
@@ -110,6 +114,7 @@ export default function Rooms({
       durationMinutes: duration,
       creatorId: getVisitorId(),
       creatorName: displayNameOf(profile),
+      ...(theme ? { theme } : {}),
     })
     setCreating(false)
     if (result.ok) {
@@ -117,11 +122,14 @@ export default function Rooms({
       setShowForm(false)
       setTitle("")
       setTopic("")
+      setTheme(undefined)
       load()
     } else if (result.code === "rate_limited") {
       setCreateError(t(lang, "errCreateRateLimited"))
     } else if (result.code === "too_many_rooms") {
       setCreateError(t(lang, "errCreateFull"))
+    } else if (result.code === "filtered") {
+      setCreateError(t(lang, "errCreateFiltered"))
     } else if (result.code === "bad_request" || result.code.startsWith("invalid_")) {
       setCreateError(t(lang, "errCreateInvalid"))
     } else {
@@ -274,6 +282,34 @@ export default function Rooms({
                 ))}
               </select>
             </label>
+            {/* 房间主题背景（阶段 16）：缩略图单选，默认 = 无背景 */}
+            <div className="theme-field">
+              <span className="theme-field-label">{t(lang, "themeLabel")}</span>
+              <div className="theme-picker" role="radiogroup" aria-label={t(lang, "themeLabel")}>
+                <button
+                  type="button"
+                  className={theme === undefined ? "theme-thumb theme-thumb--active" : "theme-thumb"}
+                  role="radio"
+                  aria-checked={theme === undefined}
+                  onClick={() => setTheme(undefined)}
+                >
+                  <span className="theme-thumb-none">{t(lang, "themeDefault")}</span>
+                </button>
+                {ROOM_THEME_OPTIONS.map(({ id, labelKey, Svg }) => (
+                  <button
+                    type="button"
+                    key={id}
+                    className={theme === id ? "theme-thumb theme-thumb--active" : "theme-thumb"}
+                    role="radio"
+                    aria-checked={theme === id}
+                    title={t(lang, labelKey)}
+                    onClick={() => setTheme(id)}
+                  >
+                    <Svg />
+                  </button>
+                ))}
+              </div>
+            </div>
             {createError && (
               <p className="create-error" role="alert">
                 {createError}

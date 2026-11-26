@@ -3,6 +3,7 @@
  * 目录是单一实例的 SQLite Durable Object（RoomDirectoryDurableObject），
  * Worker 通过同源 HTTP API 暴露给前端，Room DO 通过内部 fetch 上报在房人数。
  */
+import type { RoomThemeId } from "./roomThemes"
 import type { Room } from "./types"
 
 /** POST /api/rooms 的请求体。 */
@@ -15,6 +16,8 @@ export interface CreateRoomInput {
   creatorId: string
   /** 创建者显示名，仅随房间记录展示。 */
   creatorName: string
+  /** 房间主题背景（阶段 16）：白名单内的主题 id，缺省 = 无背景。 */
+  theme?: RoomThemeId
 }
 
 /** GET /api/rooms 的响应。 */
@@ -41,3 +44,13 @@ export type RoomApiErrorCode =
   | "not_found"
   | "closed"
   | "bad_request"
+  /** 阶段 16：标题/话题命中垃圾过滤 */
+  | "filtered"
+  /** 阶段 16：theme 不在白名单 */
+  | "invalid_theme"
+  /** 阶段 16：只有房主可以改房间背景 */
+  | "forbidden"
+  /** 阶段 16：上传图片超长 */
+  | "bg_too_large"
+  /** 阶段 16：上传图片格式不合法 */
+  | "bg_invalid"

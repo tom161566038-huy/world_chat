@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import type { ClientEvent, ServerEvent } from "../shared/protocol"
+import type { RoomThemeId } from "../shared/roomThemes"
 import { AI_SENDER_PREFIX } from "../shared/rooms"
 import type {
   ChatMessage,
@@ -12,10 +13,11 @@ import type {
 import Avatar from "./Avatar"
 import ProfileCard from "./ProfileCard"
 import ProfileHome from "./ProfileHome"
-import { getVisitorId } from "./api"
+import { getVisitorId, updateRoomTheme, uploadRoomBackground } from "./api"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, sameLanguage, serverErrorMessage, t } from "./i18n"
-import { displayNameOf, flagEmoji, memberOf, profilePayloadOf } from "./profile"
+import { ROOM_THEME_OPTIONS } from "./roomThemes"
+import { compressBackground, displayNameOf, flagEmoji, memberOf, profilePayloadOf } from "./profile"
 import { recordRecentRoom } from "./recentRooms"
 import { roomLink } from "./router"
 import { copyText } from "./share"
@@ -262,6 +264,18 @@ export default function Chat({
   const [homeUserId, setHomeUserId] = useState<string | null>(null)
   /** 最近一次上报给服务端的档案（JSON）：避免 join 后重复发 profile_update。 */
   const lastSentProfileRef = useRef<string | null>(null)
+  /**
+   * 房间背景（阶段 16）：bgTheme = 内置 SVG 场景、bgImage = 房主上传的
+   * dataURL（优先于主题显示）。先用 room.theme 即时上墙（房间记录带着），
+   * joined 事件的 background 再校正为 Room DO bg 键里的权威值；
+   * room_theme / room_background 广播实时跟进房主的修改。
+   */
+  const [bgTheme, setBgTheme] = useState<RoomThemeId | undefined>(room.theme)
+  const [bgImage, setBgImage] = useState<string | null>(null)
+  /** 背景管理面板（仅房主，room.isCreator 由目录判定）。 */
+  const [bgPanelOpen, setBgPanelOpen] = useState(false)
+  const [bgUploading, setBgUploading] = useState(false)
+  const [bgError, setBgError] = useState<string | null>(null)
 
   // 切换语言（界面小修复）：清掉旧语言的译文缓存并把游标重置为 -1，
   // 随后 socket effect（依赖 language）重连时 join 不带 lastSeq，
@@ -310,6 +324,14 @@ export default function Chat({
       }
       if (event.type === "joined") {
         setMyUserId(event.userId)
+        if (event.background) {
+          setBgTheme(event.background.theme)
+          setBgImage(event.background.image ?? null)
+        }
+      } else if (event.type === "room_theme") {
+        setBgTheme(event.theme)
+      } else if (event.type === "room_background") {
+        setBgImage(event.image)
       } else if (event.type === "history") {
         // 服务端回放的消息（初次进入 = 近期历史，重连 = 补拉错过的）。
         // 去重合并：重连时本地已有一部分，只 append 没见过的（按 id），
@@ -473,6 +495,51 @@ export default function Chat({
     return members[userId] ?? null
   }
 
+  /** 背景操作错误码 → 本地化提示（阶段 16）。 */
+  function bgErrorText(code: string): string {
+    if (code === "forbidden") return t(language, "errBgForbidden")
+    if (code === "bg_too_large") return t(language, "errBgTooLarge")
+    if (code === "bg_invalid") return t(language, "errBgFormat")
+    if (code === "rate_limited") return t(language, "errRateLimited")
+    return t(language, "errBgSave")
+  }
+
+  /** 房主换主题 / 恢复默认；成功后本地即时跟进（广播也会回一份，幂等）。 */
+  async function applyTheme(next: RoomThemeId | undefined) {
+    setBgError(null)
+    const result = await updateRoomTheme(room.slug, next ?? null, getVisitorId())
+    if (result.ok) setBgTheme(next)
+    else setBgError(bgErrorText(result.code))
+  }
+
+  /** 房主上传自定义背景：先压缩到 ≤300k dataURL，再走鉴权路由。 */
+  async function pickBackground(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    // 清掉 value，同一张图删掉重传也能触发 change
+    e.target.value = ""
+    if (!file) return
+    setBgUploading(true)
+    setBgError(null)
+    const data = await compressBackground(file)
+    if (!data) {
+      setBgUploading(false)
+      setBgError(t(language, "errBgFormat"))
+      return
+    }
+    const result = await uploadRoomBackground(room.slug, data, getVisitorId())
+    setBgUploading(false)
+    if (result.ok) setBgImage(data)
+    else setBgError(bgErrorText(result.code))
+  }
+
+  /** 房主删除自定义图片：回落主题（或无背景）。 */
+  async function clearBackgroundImage() {
+    setBgError(null)
+    const result = await uploadRoomBackground(room.slug, null, getVisitorId())
+    if (result.ok) setBgImage(null)
+    else setBgError(bgErrorText(result.code))
+  }
+
   const roomTitle = roomMeta(language, room.slug, room).title
 
   // 成功打开房间（大厅进入或直链都会挂载到这里）：记进「最近去过」，
@@ -488,9 +555,16 @@ export default function Chat({
       : status === "connecting"
         ? t(language, "connecting")
         : t(language, "reconnecting")
+  const hasBackground = bgTheme !== undefined || bgImage !== null
+  const ThemeSvg = ROOM_THEME_OPTIONS.find((o) => o.id === bgTheme)?.Svg
 
   return (
-    <main className="chat">
+    <main className={hasBackground ? "chat has-bg" : "chat"}>
+      {hasBackground && (
+        <div className={bgImage ? "chat-bg chat-bg--photo" : "chat-bg"} aria-hidden="true">
+          {bgImage ? <img src={bgImage} alt="" /> : ThemeSvg ? <ThemeSvg /> : null}
+        </div>
+      )}
       <header className="chat-header">
         <button className="link" onClick={onLeave}>
           {t(language, "leave")}
@@ -505,6 +579,11 @@ export default function Chat({
         </span>
         <span className="header-right">
           <LanguageSwitcher language={language} onChange={onLanguageChange} />
+          {room.isCreator && (
+            <button className="toggle invite" onClick={() => setBgPanelOpen(true)}>
+              {t(language, "bgChangeBtn")}
+            </button>
+          )}
           <button className="toggle invite" onClick={onOpenSettings}>
             {t(language, "settingsBtn")}
           </button>
@@ -560,6 +639,71 @@ export default function Chat({
       {serverError && (
         <div className="error-toast" role="alert">
           {serverError}
+        </div>
+      )}
+
+      {/* 房主的背景管理面板（阶段 16）：换主题 / 上传图 / 恢复默认 / 合规提示 */}
+      {bgPanelOpen && room.isCreator && (
+        <div
+          className="overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setBgPanelOpen(false)
+          }}
+        >
+          <div className="settings-panel">
+            <h2>{t(language, "themeLabel")}</h2>
+            <div className="theme-picker" role="radiogroup" aria-label={t(language, "themeLabel")}>
+              <button
+                type="button"
+                className={bgTheme === undefined ? "theme-thumb theme-thumb--active" : "theme-thumb"}
+                role="radio"
+                aria-checked={bgTheme === undefined}
+                onClick={() => applyTheme(undefined)}
+              >
+                <span className="theme-thumb-none">{t(language, "themeDefault")}</span>
+              </button>
+              {ROOM_THEME_OPTIONS.map(({ id, labelKey, Svg }) => (
+                <button
+                  type="button"
+                  key={id}
+                  className={bgTheme === id ? "theme-thumb theme-thumb--active" : "theme-thumb"}
+                  role="radio"
+                  aria-checked={bgTheme === id}
+                  title={t(language, labelKey)}
+                  onClick={() => applyTheme(id)}
+                >
+                  <Svg />
+                </button>
+              ))}
+            </div>
+            <div className="bg-upload-row">
+              <label className="bg-upload">
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={bgUploading}
+                  onChange={pickBackground}
+                />
+                {bgUploading ? t(language, "bgUploading") : t(language, "bgUploadLabel")}
+              </label>
+              {bgImage !== null && (
+                <button type="button" className="link" onClick={clearBackgroundImage}>
+                  {t(language, "bgClearBtn")}
+                </button>
+              )}
+            </div>
+            <p className="settings-hint">{t(language, "bgUploadNote")}</p>
+            {bgError && (
+              <p className="settings-error" role="alert">
+                {bgError}
+              </p>
+            )}
+            <div className="form-actions">
+              <button type="button" className="link" onClick={() => setBgPanelOpen(false)}>
+                {t(language, "closeBtn")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

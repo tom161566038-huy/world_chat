@@ -1,5 +1,7 @@
 /** 前后端共用的领域类型。实现时不要在 client / worker 各自再定义一份。 */
 
+import type { RoomThemeId } from "./roomThemes"
+
 export type LanguageCode = string
 
 /**
@@ -56,6 +58,11 @@ export interface Room {
   title: string
   topic: string
   createdAt: number
+  /**
+   * 房间主题背景（阶段 16）：内置 SVG 场景 id，缺省 = 无背景。
+   * 房主可改（目录 DO 校验创建者后更新），全房可见。
+   */
+  theme?: RoomThemeId
   /** builtin = 内置常开房间；user = 用户自建、限时开放（阶段 9）。缺省视为 builtin。 */
   kind?: "builtin" | "user"
   /** 自建房间的关闭时间（毫秒时间戳）；已过此刻即关闭。内置房间无此字段。 */
@@ -66,6 +73,12 @@ export interface Room {
   occupantCount?: number
   /** AI 场景房的人设（阶段 15）：有此字段的内置房会有 AI 伙伴参与对话。 */
   ai?: RoomAi
+  /**
+   * 「我是房主」的瞬态展示标记（阶段 16）：目录 DO 命中 ?creator= 时附带，
+   * 只用于前端显示背景管理入口，不是 Room 记录的持久字段
+   * （同 occupantCount 的先例）。真正的创建者校验在服务端。
+   */
+  isCreator?: boolean
 }
 
 export interface ChatMessage {

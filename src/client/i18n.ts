@@ -144,6 +144,27 @@ interface Strings {
   errRoomClosed: string
   inviteHint: string
   loadingRoom: string
+  // 房间主题背景（阶段 16）
+  themeLabel: string
+  themeDefault: string
+  themeBeach: string
+  themeGrassland: string
+  themeWoods: string
+  themeCity: string
+  themePlayground: string
+  themeClassroom: string
+  themeHome: string
+  themeJail: string
+  bgChangeBtn: string
+  bgUploadLabel: string
+  bgUploadNote: string
+  bgClearBtn: string
+  bgUploading: string
+  errCreateFiltered: string
+  errBgTooLarge: string
+  errBgFormat: string
+  errBgForbidden: string
+  errBgSave: string
   // 房间名 / 话题（按 slug）
   roomLobbyTitle: string
   roomLobbyTopic: string
@@ -306,6 +327,27 @@ const STRINGS: Record<string, Strings> = {
     errRoomClosed: "房间已关闭",
     inviteHint: "只有你一个人？复制邀请链接，叫朋友进来聊吧。",
     loadingRoom: "正在打开房间…",
+    themeLabel: "房间背景",
+    themeDefault: "默认（无背景）",
+    themeBeach: "沙滩",
+    themeGrassland: "草原",
+    themeWoods: "林地",
+    themeCity: "城市风光",
+    themePlayground: "游乐场",
+    themeClassroom: "课堂",
+    themeHome: "家庭室内",
+    themeJail: "幽暗监牢",
+    bgChangeBtn: "背景",
+    bgUploadLabel: "上传自定义图片",
+    bgUploadNote:
+      "请上传适宜图片（风景、插画等），禁止色情、暴力或政治敏感内容；房间关闭后图片自动删除。",
+    bgClearBtn: "恢复默认背景",
+    bgUploading: "背景上传中…",
+    errCreateFiltered: "标题或话题包含疑似垃圾内容，请修改后重试",
+    errBgTooLarge: "图片太大了，换一张或裁小一点试试",
+    errBgFormat: "图片处理失败，请换一张试试",
+    errBgForbidden: "只有房主可以修改房间背景",
+    errBgSave: "背景保存失败，请稍后重试",
     settingsBtn: "设置",
     settingsTitle: "个人资料设置",
     avatarLabel: "头像",
@@ -448,6 +490,27 @@ const STRINGS: Record<string, Strings> = {
     errRoomClosed: "Room closed",
     inviteHint: "All alone here? Copy the invite link and bring a friend in.",
     loadingRoom: "Opening the room…",
+    themeLabel: "Room background",
+    themeDefault: "Default (none)",
+    themeBeach: "Beach",
+    themeGrassland: "Grassland",
+    themeWoods: "Woods",
+    themeCity: "Cityscape",
+    themePlayground: "Playground",
+    themeClassroom: "Classroom",
+    themeHome: "Home interior",
+    themeJail: "Dim jail",
+    bgChangeBtn: "Background",
+    bgUploadLabel: "Upload custom image",
+    bgUploadNote:
+      "Please upload suitable images (landscapes, illustrations, etc.). Pornographic, violent, or politically sensitive content is not allowed; the image is deleted automatically when the room closes.",
+    bgClearBtn: "Reset background",
+    bgUploading: "Uploading background…",
+    errCreateFiltered: "The title or topic looks like spam — please revise and retry",
+    errBgTooLarge: "That image is too large — try a smaller or cropped one",
+    errBgFormat: "Couldn't process that image — please try another",
+    errBgForbidden: "Only the room creator can change the background",
+    errBgSave: "Couldn't save the background, please retry",
     settingsBtn: "Settings",
     settingsTitle: "Profile settings",
     avatarLabel: "Avatar",
@@ -591,6 +654,27 @@ const STRINGS: Record<string, Strings> = {
     errRoomClosed: "部屋は閉鎖されました",
     inviteHint: "一人だけ？招待リンクをコピーして友達を呼びましょう。",
     loadingRoom: "部屋を開いています…",
+    themeLabel: "部屋の背景",
+    themeDefault: "デフォルト（なし）",
+    themeBeach: "ビーチ",
+    themeGrassland: "草原",
+    themeWoods: "森",
+    themeCity: "街並み",
+    themePlayground: "遊園地",
+    themeClassroom: "教室",
+    themeHome: "家の室内",
+    themeJail: "薄暗い監獄",
+    bgChangeBtn: "背景",
+    bgUploadLabel: "カスタム画像をアップロード",
+    bgUploadNote:
+      "適切な画像（風景・イラストなど）をアップロードしてください。わいせつ・暴力的・政治的に敏感な内容は禁止です。部屋が閉じると画像は自動的に削除されます。",
+    bgClearBtn: "デフォルトの背景に戻す",
+    bgUploading: "背景をアップロード中…",
+    errCreateFiltered: "タイトルまたはトピックにスパムのような内容が含まれます。修正してお試しください",
+    errBgTooLarge: "画像が大きすぎます。小さめの画像や切り抜いた画像でお試しください",
+    errBgFormat: "画像を処理できませんでした。別の画像でお試しください",
+    errBgForbidden: "背景を変更できるのは作成者だけです",
+    errBgSave: "背景を保存できませんでした。しばらくしてからお試しください",
     settingsBtn: "設定",
     settingsTitle: "プロフィール設定",
     avatarLabel: "アイコン",
@@ -733,6 +817,27 @@ const STRINGS: Record<string, Strings> = {
     errRoomClosed: "Sala cerrada",
     inviteHint: "¿Estás solo? Copia el enlace de invitación y trae a un amigo.",
     loadingRoom: "Abriendo la sala…",
+    themeLabel: "Fondo de la sala",
+    themeDefault: "Predeterminado (sin fondo)",
+    themeBeach: "Playa",
+    themeGrassland: "Pradera",
+    themeWoods: "Bosque",
+    themeCity: "Ciudad",
+    themePlayground: "Parque infantil",
+    themeClassroom: "Aula",
+    themeHome: "Interior de casa",
+    themeJail: "Cárcel sombría",
+    bgChangeBtn: "Fondo",
+    bgUploadLabel: "Subir imagen personalizada",
+    bgUploadNote:
+      "Sube imágenes apropiadas (paisajes, ilustraciones, etc.). No se permite contenido pornográfico, violento o políticamente sensible; la imagen se elimina automáticamente al cerrarse la sala.",
+    bgClearBtn: "Restablecer fondo",
+    bgUploading: "Subiendo fondo…",
+    errCreateFiltered: "El título o el tema parece spam; modifícalos e inténtalo de nuevo",
+    errBgTooLarge: "La imagen es demasiado grande; prueba una más pequeña o recortada",
+    errBgFormat: "No se pudo procesar la imagen; prueba con otra",
+    errBgForbidden: "Solo quien creó la sala puede cambiar el fondo",
+    errBgSave: "No se pudo guardar el fondo; inténtalo más tarde",
     settingsBtn: "Ajustes",
     settingsTitle: "Ajustes de perfil",
     avatarLabel: "Avatar",
@@ -875,6 +980,27 @@ const STRINGS: Record<string, Strings> = {
     errRoomClosed: "Salon fermé",
     inviteHint: "Tout seul ici ? Copiez le lien d'invitation et amenez un ami.",
     loadingRoom: "Ouverture du salon…",
+    themeLabel: "Fond du salon",
+    themeDefault: "Par défaut (aucun)",
+    themeBeach: "Plage",
+    themeGrassland: "Prairie",
+    themeWoods: "Forêt",
+    themeCity: "Ville",
+    themePlayground: "Aire de jeux",
+    themeClassroom: "Salle de classe",
+    themeHome: "Intérieur de maison",
+    themeJail: "Prison sombre",
+    bgChangeBtn: "Fond",
+    bgUploadLabel: "Téléverser une image",
+    bgUploadNote:
+      "Merci de téléverser des images appropriées (paysages, illustrations, etc.). Les contenus pornographiques, violents ou politiquement sensibles sont interdits ; l'image est supprimée automatiquement à la fermeture du salon.",
+    bgClearBtn: "Rétablir le fond par défaut",
+    bgUploading: "Téléversement du fond…",
+    errCreateFiltered: "Le titre ou le sujet ressemble à du spam — modifiez puis réessayez",
+    errBgTooLarge: "Image trop grande — essayez une image plus petite ou recadrée",
+    errBgFormat: "Impossible de traiter cette image — essayez-en une autre",
+    errBgForbidden: "Seul le créateur du salon peut modifier le fond",
+    errBgSave: "Impossible d'enregistrer le fond, réessayez plus tard",
     settingsBtn: "Réglages",
     settingsTitle: "Réglages du profil",
     avatarLabel: "Avatar",
@@ -962,6 +1088,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       { h: "我们处理哪些信息", p: [
         "WorldChat 不设账号，不收集邮箱、手机号或支付信息。进入聊天时只需要一个显示名称和你的界面语言，它们保存在你浏览器的本地存储里，清除浏览器数据即删除。",
         "你发送的消息（含发送者显示名称、语言、时间）会保存在房间所在的服务器存储中。每个房间只保留最近约 100 条消息和它们的译文，供后来进入的人查看；用户自建的房间到期关闭时，房内消息与相关记录会被删除。",
+        "房主上传的房间背景图片保存在房间存储中，房间关闭时会一并删除。",
         "国家/地区与可选资料：我们根据 Cloudflare 边缘网络在你连接时推断的国家/地区显示国旗，不保存你的原始 IP 地址。你在设置里填写的可选资料（头像、昵称、性别、年龄等）仅存本地，并展示给你所在房间的其他人。",
       ] },
       { h: "消息会交给翻译服务", p: [
@@ -983,6 +1110,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       { h: "What we process", p: [
         "WorldChat has no accounts. We don't collect email addresses, phone numbers, or payment information. Chatting only requires a display name and your interface language, both stored in your browser's local storage — clearing your browser data removes them.",
         "Messages you send (with display name, language, and time) are kept in server storage for the room. Each room keeps only the most recent ~100 messages and their translations so later visitors can catch up; when a user-created room closes at its time limit, its messages and related records are deleted.",
+        "Room background images uploaded by the room's creator are stored with the room and deleted when it closes.",
         "Country/region and optional profile: your flag is inferred from the country Cloudflare's edge network sees when you connect; your raw IP address is never stored. Optional details you fill in Settings (avatar, nickname, gender, age, etc.) stay on your device and are shown to others in rooms you join.",
       ] },
       { h: "Messages go to translation services", p: [
@@ -1004,6 +1132,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       { h: "扱う情報", p: [
         "WorldChat にはアカウントがなく、メールアドレス・電話番号・支払い情報は収集しません。チャットに必要なのは表示名とインターフェース言語だけで、どちらもブラウザのローカルストレージに保存されます。ブラウザのデータを削除すれば消えます。",
         "送信したメッセージ（表示名・言語・時刻を含む）は、その部屋のサーバー保存領域に保存されます。各部屋には直近の約 100 件のメッセージとその翻訳だけが残り、後から入った人が会話を追えます。ユーザー作成の部屋は期限で閉じるとき、メッセージと関連記録が削除されます。",
+        "作成者がアップロードした部屋の背景画像は部屋の保存領域に保存され、部屋が閉じるときに削除されます。",
         "国/地域と任意のプロフィール：国旗は、接続時に Cloudflare のエッジネットワークが推断した国/地域に基づいて表示され、元の IP アドレスは保存しません。設定で入力した任意のプロフィール（アイコン・ニックネーム・性別・年齢など）は端末内にのみ保存され、参加した部屋の他の人に表示されます。",
       ] },
       { h: "メッセージは翻訳サービスに渡されます", p: [
@@ -1025,6 +1154,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       { h: "Qué tratamos", p: [
         "WorldChat no tiene cuentas: no recopilamos correos, números de teléfono ni datos de pago. Para chatear solo hacen falta un nombre para mostrar y tu idioma, guardados en el almacenamiento local de tu navegador; borrar los datos del navegador los elimina.",
         "Los mensajes que envías (con nombre, idioma y hora) se guardan en el almacenamiento del servidor de la sala. Cada sala conserva solo los últimos ~100 mensajes y sus traducciones, para que quien entre después pueda ponerse al día; cuando una sala creada por usuarios se cierra al vencer su plazo, sus mensajes y registros relacionados se eliminan.",
+        "Las imágenes de fondo subidas por quien creó la sala se guardan con la sala y se eliminan cuando esta se cierra.",
         "País/región y perfil opcional: tu bandera se deduce del país que la red periférica de Cloudflare ve al conectarte; tu IP original nunca se guarda. Los datos opcionales que completes en Ajustes (avatar, apodo, género, edad, etc.) se guardan solo en tu dispositivo y se muestran a los demás en las salas en las que entres.",
       ] },
       { h: "Los mensajes pasan por servicios de traducción", p: [
@@ -1046,6 +1176,7 @@ export function privacyDoc(lang: LanguageCode): DocSection[] {
       { h: "Ce que nous traitons", p: [
         "WorldChat n'a pas de comptes : nous ne collectons ni e-mail, ni numéro de téléphone, ni informations de paiement. Discuter ne demande qu'un nom d'affichage et votre langue d'interface, conservés dans le stockage local de votre navigateur — effacer les données du navigateur les supprime.",
         "Les messages que vous envoyez (avec nom, langue et horodatage) sont conservés dans le stockage du salon. Chaque salon ne garde que les ~100 derniers messages et leurs traductions, afin que les nouveaux arrivants puissent suivre ; quand un salon créé par un utilisateur se ferme à l'échéance, ses messages et données associées sont supprimés.",
+        "Les images de fond téléversées par le créateur du salon sont conservées avec le salon et supprimées à sa fermeture.",
         "Pays/région et profil facultatif : votre drapeau est déduit du pays que le réseau Edge de Cloudflare voit lors de la connexion ; votre adresse IP d'origine n'est jamais conservée. Les renseignements facultatifs saisis dans les Réglages (avatar, pseudo, genre, âge, etc.) restent sur votre appareil et sont montrés aux autres membres des salons que vous rejoignez.",
       ] },
       { h: "Les messages passent par des services de traduction", p: [
