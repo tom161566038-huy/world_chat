@@ -16,7 +16,7 @@ import ProfileHome from "./ProfileHome"
 import { getVisitorId, updateRoomTheme, uploadRoomBackground } from "./api"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, sameLanguage, serverErrorMessage, t } from "./i18n"
-import { ROOM_THEME_OPTIONS } from "./roomThemes"
+import { ROOM_THEME_OPTIONS, ThemePicker } from "./roomThemes"
 import { compressBackground, displayNameOf, flagEmoji, memberOf, profilePayloadOf } from "./profile"
 import { recordRecentRoom } from "./recentRooms"
 import { roomLink } from "./router"
@@ -439,6 +439,20 @@ export default function Chat({
     return () => clearTimeout(timer)
   }, [serverError])
 
+  // 计时房间的剩余时间（顶部展示）：半分钟刷一次，关房横幅另由 WS 事件负责
+  const [nowTick, setNowTick] = useState(Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNowTick(Date.now()), 30_000)
+    return () => clearInterval(timer)
+  }, [])
+  const remainingLabel = (() => {
+    if (room.closesAt === undefined || roomClosed) return null
+    const minutes = Math.max(1, Math.ceil((room.closesAt - nowTick) / 60_000))
+    return minutes < 60
+      ? t(language, "closesInMinutes", { count: String(minutes) })
+      : t(language, "closesInHours", { count: String(Math.ceil(minutes / 60)) })
+  })()
+
   function send() {
     const text = draft.trim()
     if (!text || status !== "open" || roomClosed) return
@@ -556,13 +570,17 @@ export default function Chat({
         ? t(language, "connecting")
         : t(language, "reconnecting")
   const hasBackground = bgTheme !== undefined || bgImage !== null
-  const ThemeSvg = ROOM_THEME_OPTIONS.find((o) => o.id === bgTheme)?.Svg
+  const activeTheme = ROOM_THEME_OPTIONS.find((o) => o.id === bgTheme)
 
   return (
     <main className={hasBackground ? "chat has-bg" : "chat"}>
       {hasBackground && (
-        <div className={bgImage ? "chat-bg chat-bg--photo" : "chat-bg"} aria-hidden="true">
-          {bgImage ? <img src={bgImage} alt="" /> : ThemeSvg ? <ThemeSvg /> : null}
+        <div className="chat-bg chat-bg--photo" aria-hidden="true">
+          {bgImage ? (
+            <img src={bgImage} alt="" />
+          ) : activeTheme ? (
+            <img src={activeTheme.photo} alt="" />
+          ) : null}
         </div>
       )}
       <header className="chat-header">
@@ -576,6 +594,8 @@ export default function Chat({
               {t(language, "occupants", { count: String(occupantCount) })}
             </span>
           )}
+          {/* 计时房间（自建房）剩余时间：到点自动关闭，房里的人心里有数 */}
+          {remainingLabel && <span className="closes-chip">{remainingLabel}</span>}
         </span>
         <span className="header-right">
           <LanguageSwitcher language={language} onChange={onLanguageChange} />
@@ -652,30 +672,7 @@ export default function Chat({
         >
           <div className="settings-panel">
             <h2>{t(language, "themeLabel")}</h2>
-            <div className="theme-picker" role="radiogroup" aria-label={t(language, "themeLabel")}>
-              <button
-                type="button"
-                className={bgTheme === undefined ? "theme-thumb theme-thumb--active" : "theme-thumb"}
-                role="radio"
-                aria-checked={bgTheme === undefined}
-                onClick={() => applyTheme(undefined)}
-              >
-                <span className="theme-thumb-none">{t(language, "themeDefault")}</span>
-              </button>
-              {ROOM_THEME_OPTIONS.map(({ id, labelKey, Svg }) => (
-                <button
-                  type="button"
-                  key={id}
-                  className={bgTheme === id ? "theme-thumb theme-thumb--active" : "theme-thumb"}
-                  role="radio"
-                  aria-checked={bgTheme === id}
-                  title={t(language, labelKey)}
-                  onClick={() => applyTheme(id)}
-                >
-                  <Svg />
-                </button>
-              ))}
-            </div>
+            <ThemePicker language={language} value={bgTheme} onPick={applyTheme} />
             <div className="bg-upload-row">
               <label className="bg-upload">
                 <input

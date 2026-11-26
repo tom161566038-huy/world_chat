@@ -13,7 +13,7 @@ import InstallHint from "./InstallHint"
 import LandingIntro from "./LandingIntro"
 import LanguageSwitcher from "./LanguageSwitcher"
 import { roomMeta, t } from "./i18n"
-import { ROOM_THEME_OPTIONS } from "./roomThemes"
+import { ThemePicker } from "./roomThemes"
 import { displayNameOf, flagEmoji } from "./profile"
 import { DONATE_CN_URL, DONATE_INTL_URL } from "./links"
 import { loadRecentRooms } from "./recentRooms"
@@ -246,7 +246,7 @@ export default function Rooms({
           </ul>
         )}
         {!showForm && (
-          <button className="link" onClick={() => setShowForm(true)}>
+          <button className="link create-link" onClick={() => setShowForm(true)}>
             {t(lang, "createRoom")}
           </button>
         )}
@@ -285,30 +285,7 @@ export default function Rooms({
             {/* 房间主题背景（阶段 16）：缩略图单选，默认 = 无背景 */}
             <div className="theme-field">
               <span className="theme-field-label">{t(lang, "themeLabel")}</span>
-              <div className="theme-picker" role="radiogroup" aria-label={t(lang, "themeLabel")}>
-                <button
-                  type="button"
-                  className={theme === undefined ? "theme-thumb theme-thumb--active" : "theme-thumb"}
-                  role="radio"
-                  aria-checked={theme === undefined}
-                  onClick={() => setTheme(undefined)}
-                >
-                  <span className="theme-thumb-none">{t(lang, "themeDefault")}</span>
-                </button>
-                {ROOM_THEME_OPTIONS.map(({ id, labelKey, Svg }) => (
-                  <button
-                    type="button"
-                    key={id}
-                    className={theme === id ? "theme-thumb theme-thumb--active" : "theme-thumb"}
-                    role="radio"
-                    aria-checked={theme === id}
-                    title={t(lang, labelKey)}
-                    onClick={() => setTheme(id)}
-                  >
-                    <Svg />
-                  </button>
-                ))}
-              </div>
+              <ThemePicker language={lang} value={theme} onPick={setTheme} />
             </div>
             {createError && (
               <p className="create-error" role="alert">

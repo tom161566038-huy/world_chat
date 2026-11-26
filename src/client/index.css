@@ -20,9 +20,10 @@
   --success: #3e6b4f;
   --warning: #8a5a1e;
   --warning-soft: #f6efe2;
-  /* 有背景墙时界面铬的半透明暖纱（阶段 16），保证文字可读 */
-  --veil: rgba(255, 252, 248, 0.86);
-  --veil-accent: rgba(232, 238, 244, 0.86);
+  /* 有背景墙时界面铬的半透明暖纱（阶段 16 修订：alpha ~30 + 毛玻璃），
+     低透明但靠 backdrop blur 保证文字可读 */
+  --veil: rgba(255, 252, 248, 0.3);
+  --veil-accent: rgba(232, 238, 244, 0.34);
 
   /* 圆角：小组件 8px、卡片/表单 12px，全站统一 */
   --radius-s: 8px;
@@ -435,13 +436,20 @@ h1 {
   margin-top: 0;
 }
 
-/* 列表页「换个身份」与「创建房间」上下排列并拉开距离：
+/* 列表页「创建房间 / 设置 / 换个身份」三个块级按钮等距排列：
    .link 默认 inline 会并排成一行，这里改成块级换行，宽度收缩不撑满。
    双类选择器 .link.identity-link 抬高优先级，压过后面的 .link { margin-top: 16px } */
 .link.identity-link {
   display: block;
   width: fit-content;
-  margin-top: 32px;
+  margin-top: 24px;
+}
+
+/* 「创建房间」与下面两个入口按钮保持同一档间距 */
+.link.create-link {
+  display: block;
+  width: fit-content;
+  margin-top: 24px;
 }
 
 /* 创建成功面板：链接 + 进入/复制 */
@@ -577,9 +585,10 @@ h1 {
   position: relative;
 }
 
-/* 房间背景墙（阶段 16）：绝对铺满 + 内容层提级。SVG/图片 slice 裁切填满。 */
+/* 房间背景墙（阶段 16 修订）：fixed 铺满整个视口（不受 640px 栏与安全区
+   padding 限制），内容层提级浮在背景之上。SVG/图片 slice 裁切填满。 */
 .chat-bg {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 0;
   overflow: hidden;
@@ -594,12 +603,12 @@ h1 {
   object-fit: cover;
 }
 
-/* 上传照片再叠一层白纱：深色照片上气泡文字仍可读 */
+/* 照片背景再叠一层薄白纱（alpha 同 30 一档），压住高光保持文字可读 */
 .chat-bg--photo::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(255, 252, 248, 0.55);
+  background: rgba(255, 252, 248, 0.3);
 }
 
 .chat-header,
@@ -611,21 +620,36 @@ h1 {
   z-index: 1;
 }
 
-/* 有背景墙时：界面铬换半透明暖纱，气泡同底保持可读 */
-.chat.has-bg .chat-header {
-  background: var(--veil);
-}
-
+/* 有背景墙时：界面铬换 30% 暖纱 + 毛玻璃，UI 清晰浮在背景之上 */
+.chat.has-bg .chat-header,
 .chat.has-bg .composer {
   background: var(--veil);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .chat.has-bg .bubble {
   background: var(--veil);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 1px 6px rgba(28, 25, 21, 0.08);
 }
 
 .chat.has-bg .mine .bubble {
   background: var(--veil-accent);
+}
+
+/* 计时房间的剩余时间胶囊（自建房顶部展示） */
+.closes-chip {
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 /* 聊天顶栏：布局与垂直居中走上面统一顶部栏规则，这里只留皮肤（留白/边线/底色） */
@@ -1175,11 +1199,11 @@ h1 {
   background: var(--accent-strong);
 }
 
-/* 房间列表「设置」：块级换行（与「换个身份」同一样式族，间距小一档） */
+/* 房间列表「设置」：块级换行（与「创建房间 / 换个身份」同一样式族、同一档间距） */
 .link.settings-link {
   display: block;
   width: fit-content;
-  margin-top: 16px;
+  margin-top: 24px;
 }
 
 /* 最近去过的房间：大厅列表上方的胶囊快捷入口，点击与房间行同一条进入路径 */
@@ -1285,7 +1309,7 @@ select,
 
 /*
  * 房间主题选择（阶段 16）：建房表单与聊天页背景面板共用的缩略图栅格。
- * 缩略图直接复用场景 SVG 组件（viewBox 800×600、slice 裁切）。
+ * 真实照片缩略图（*-thumb.jpg）+ 下方一行本地化描述，超长截为最多两行。
  */
 .theme-field {
   margin-top: 12px;
@@ -1302,11 +1326,15 @@ select,
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  /* 80 个主题太长，表单里限高三行滚动 */
+  max-height: 340px;
+  overflow-y: auto;
 }
 
 .theme-thumb {
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  aspect-ratio: 4 / 3;
   padding: 0;
   border: 2px solid var(--line);
   border-radius: var(--radius-s);
@@ -1315,10 +1343,12 @@ select,
   cursor: pointer;
 }
 
-.theme-thumb svg {
+.theme-thumb svg,
+.theme-thumb img {
   display: block;
   width: 100%;
-  height: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
 }
 
 .theme-thumb--active {
@@ -1329,9 +1359,23 @@ select,
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  aspect-ratio: 4 / 3;
   font-size: 12px;
   color: var(--ink-muted);
+}
+
+/* 缩略图下的一行描述：最多两行，超出省略号截断 */
+.theme-thumb-caption {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  padding: 4px 6px 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+  color: var(--ink-secondary);
 }
 
 /* 背景面板的上传行：label 扮成主按钮，隐藏原生 file 输入 */

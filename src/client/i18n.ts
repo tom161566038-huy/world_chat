@@ -147,14 +147,6 @@ interface Strings {
   // 房间主题背景（阶段 16）
   themeLabel: string
   themeDefault: string
-  themeBeach: string
-  themeGrassland: string
-  themeWoods: string
-  themeCity: string
-  themePlayground: string
-  themeClassroom: string
-  themeHome: string
-  themeJail: string
   bgChangeBtn: string
   bgUploadLabel: string
   bgUploadNote: string
@@ -329,14 +321,6 @@ const STRINGS: Record<string, Strings> = {
     loadingRoom: "正在打开房间…",
     themeLabel: "房间背景",
     themeDefault: "默认（无背景）",
-    themeBeach: "沙滩",
-    themeGrassland: "草原",
-    themeWoods: "林地",
-    themeCity: "城市风光",
-    themePlayground: "游乐场",
-    themeClassroom: "课堂",
-    themeHome: "家庭室内",
-    themeJail: "幽暗监牢",
     bgChangeBtn: "背景",
     bgUploadLabel: "上传自定义图片",
     bgUploadNote:
@@ -492,14 +476,6 @@ const STRINGS: Record<string, Strings> = {
     loadingRoom: "Opening the room…",
     themeLabel: "Room background",
     themeDefault: "Default (none)",
-    themeBeach: "Beach",
-    themeGrassland: "Grassland",
-    themeWoods: "Woods",
-    themeCity: "Cityscape",
-    themePlayground: "Playground",
-    themeClassroom: "Classroom",
-    themeHome: "Home interior",
-    themeJail: "Dim jail",
     bgChangeBtn: "Background",
     bgUploadLabel: "Upload custom image",
     bgUploadNote:
@@ -656,14 +632,6 @@ const STRINGS: Record<string, Strings> = {
     loadingRoom: "部屋を開いています…",
     themeLabel: "部屋の背景",
     themeDefault: "デフォルト（なし）",
-    themeBeach: "ビーチ",
-    themeGrassland: "草原",
-    themeWoods: "森",
-    themeCity: "街並み",
-    themePlayground: "遊園地",
-    themeClassroom: "教室",
-    themeHome: "家の室内",
-    themeJail: "薄暗い監獄",
     bgChangeBtn: "背景",
     bgUploadLabel: "カスタム画像をアップロード",
     bgUploadNote:
@@ -819,14 +787,6 @@ const STRINGS: Record<string, Strings> = {
     loadingRoom: "Abriendo la sala…",
     themeLabel: "Fondo de la sala",
     themeDefault: "Predeterminado (sin fondo)",
-    themeBeach: "Playa",
-    themeGrassland: "Pradera",
-    themeWoods: "Bosque",
-    themeCity: "Ciudad",
-    themePlayground: "Parque infantil",
-    themeClassroom: "Aula",
-    themeHome: "Interior de casa",
-    themeJail: "Cárcel sombría",
     bgChangeBtn: "Fondo",
     bgUploadLabel: "Subir imagen personalizada",
     bgUploadNote:
@@ -982,14 +942,6 @@ const STRINGS: Record<string, Strings> = {
     loadingRoom: "Ouverture du salon…",
     themeLabel: "Fond du salon",
     themeDefault: "Par défaut (aucun)",
-    themeBeach: "Plage",
-    themeGrassland: "Prairie",
-    themeWoods: "Forêt",
-    themeCity: "Ville",
-    themePlayground: "Aire de jeux",
-    themeClassroom: "Salle de classe",
-    themeHome: "Intérieur de maison",
-    themeJail: "Prison sombre",
     bgChangeBtn: "Fond",
     bgUploadLabel: "Téléverser une image",
     bgUploadNote:

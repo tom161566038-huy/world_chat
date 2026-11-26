@@ -442,10 +442,10 @@
 closesAt 不受影响。隐私说明五语言同步补一句「自建房到期关闭时消息与
 相关记录会被删除」。
 
-## 阶段 16：房间主题背景（内置 SVG 场景 + 房主上传图片）（2026-11-26）
+## 阶段 16：房间主题背景（80 张真实照片 + 房主上传图片）（2026-11-26）
 
-- [x] 共用类型：`src/shared/roomThemes.ts`（RoomThemeId 八选一白名单 +
-      isRoomThemeId 校验）；Room 加 `theme?` 与瞬态 `isCreator?`；
+- [x] 共用类型：`src/shared/roomThemes.ts`（RoomThemeId 80 个照片主题
+      白名单 + isRoomThemeId 校验）；Room 加 `theme?` 与瞬态 `isCreator?`；
       CreateRoomInput 加 `theme?`；错误码追加
       filtered/invalid_theme/forbidden/bg_too_large/bg_invalid；
       protocol 追加 `room_theme`/`room_background` 事件，`joined` 带可选
@@ -469,25 +469,33 @@ closesAt 不受影响。隐私说明五语言同步补一句「自建房到期�
       background（Worker 先按 >320k 预检 400 → 目录 verify-creator →
       Room DO /bg）；两路由排除 BUILTIN_ROOM_IDS（内置房 404）；/ws
       转发前 `searchParams.delete("theme")` 再按目录记录回填（防伪造种子）。
-- [x] 前端：`src/client/roomThemes.tsx` 八个手写 SVG 场景（viewBox
-      800×600、slice、浅色基本形状）+ ROOM_THEME_OPTIONS，缩略图复用
-      同组件；Rooms 建房表单加主题单选行；Chat.tsx bgTheme/bgImage 状态
-      （room.theme 即时上墙 → joined 校正 → 广播实时跟进）、has-bg
-      背景层、房主（room.isCreator）header「背景」按钮开面板（换主题/
-      上传/恢复默认/合规提示）；App 房间解析 lookupRoom 带 creator；
-      profile.ts compressImage 泛化（compressAvatar 行为不变）+
-      compressBackground（1280/1024/800 × 0.8/0.65/0.5 ≤300k）；
+- [x] 内置主题图：80 张真实照片（世界名胜 + 世界室内，Unsplash/Pexels
+      License，来源见 public/themes/CREDITS.md），大图 1440 宽 JPEG
+      （超 280k 的降 1280/q32 重压）、缩略图 240 宽（*-thumb.jpg），
+      打包仓库同源伺服，建房表单只加载缩略图。
+- [x] 前端：`src/client/roomThemes.tsx` ROOM_THEME_OPTIONS 由白名单
+      生成 + 共用 ThemePicker（radiogroup，每张缩略图下方一行本地化
+      描述，超长 line-clamp 两行截断）；主题名 ×5 语言在
+      `src/client/themeNames.ts`（单独成表，不进 i18n.ts）；Rooms 建房
+      表单加主题单选行；Chat.tsx bgTheme/bgImage 状态（room.theme 即时
+      上墙 → joined 校正 → 广播实时跟进）、chat-bg 全屏铺底（照片叠
+      0.3 白纱 + 界面铬 backdrop-blur 半透明浮层）、计时房间顶部剩余
+      时长 chip、房主（room.isCreator）header「背景」按钮开面板（换
+      主题/上传/恢复默认/合规提示）；App 房间解析 lookupRoom 带
+      creator；profile.ts compressImage 泛化（compressAvatar 行为
+      不变）+ compressBackground（1280/1024/800 × 0.8/0.65/0.5 ≤300k）；
       api.ts updateRoomTheme/uploadRoomBackground/lookupRoom(creator?)。
-- [x] 样式与文案：`.chat-bg` 绝对铺满 z-index 0、内容层提级 1、
-      `--veil: rgba(255,252,248,.86)` 半透明界面铬、上传图叠 0.55 白纱；
-      i18n ×5 新增 20 个 key（主题名/背景面板/错误文案）；隐私说明 ×5
-      补「房主上传的房间背景存房间存储，房间关闭时删除」。
+- [x] 样式与文案：`.chat-bg` fixed 铺满全屏 z-index 0、内容层提级 1、
+      `--veil` 半透明界面铬 + backdrop-filter blur、上传图叠白纱；
+      `.theme-thumb-caption` line-clamp 两行；i18n ×5 保留界面铬文案
+      （主题名移至 themeNames.ts）；隐私说明 ×5 补「房主上传的房间
+      背景存房间存储，房间关闭时删除」。
 
 验证：tsc 两份 tsconfig + vite build 全过；本地 wrangler dev 实测——
-建房带 beach 主题、垃圾标题 filtered、非法 theme invalid_theme、
+建房带主题、垃圾标题 filtered、非法 theme invalid_theme、
 isCreator 仅 ?creator= 命中时出现、非房主换主题/传图 403 forbidden、
-500k 图片体 bg_too_large、javascript: 伪协议 bg_invalid、/ws?theme=jail
-伪造参数被清（joined 仍回目录记录的 woods）、上传后 room_background
+500k 图片体 bg_too_large、javascript: 伪协议 bg_invalid、/ws?theme=…
+伪造参数被清（joined 仍回目录记录主题）、上传后 room_background
 广播至既有连接、新加入者 joined 带上 image、清主题+删图后 joined 无
 background。线上待复测：真实手机半透明可读性（深色照片）、大图广播
 到达率、房间到期 bg 键销毁。
