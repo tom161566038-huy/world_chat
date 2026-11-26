@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import type { ClientEvent, ServerEvent } from "../shared/protocol"
+import { AI_SENDER_PREFIX } from "../shared/rooms"
 import type {
   ChatMessage,
   LanguageCode,
@@ -73,7 +74,8 @@ function SenderLine({
   )
 }
 
-/** 单条消息：自己发的永远看原文；别人的消息优先显示成自己语言的译文，可展开原文。 */
+/** 单条消息：自己发的永远看原文；别人的消息优先显示成自己语言的译文，可展开原文。
+ * AI 场景房例外（阶段 15 修订）：AI 的消息英文原文为主、译文点开才显示，保住练习价值。 */
 function MessageRow({
   message,
   mine,
@@ -81,6 +83,7 @@ function MessageRow({
   translationFailed,
   myLanguage,
   member,
+  aiMessage,
   onOpenCard,
   onReport,
 }: {
@@ -90,6 +93,8 @@ function MessageRow({
   /** 服务端明确通知过「这条译不出来」，UI 给出说明而不是默默显示原文。 */
   translationFailed: boolean
   myLanguage: LanguageCode
+  /** AI 伙伴的消息（房间带 ai 人设且 senderId 为 ai: 前缀）：英文为主展示。 */
+  aiMessage: boolean
   /** 发送者档案（头像/国旗/资料卡数据源）；旧消息查不到就没有。 */
   member?: RoomMemberProfile
   onOpenCard: (userId: string) => void
@@ -97,6 +102,7 @@ function MessageRow({
   onReport: (reason: string) => Promise<ReportResult>
 }) {
   const [showOriginal, setShowOriginal] = useState(false)
+  const [showTranslation, setShowTranslation] = useState(false)
   const [reportUi, setReportUi] = useState<ReportUiState>("hidden")
   const [reason, setReason] = useState("")
   const translated =
@@ -137,13 +143,25 @@ function MessageRow({
         onOpenCard={onOpenCard}
       />
       {translated ? (
-        <>
-          <p className="bubble">{translation.text}</p>
-          <button className="toggle" onClick={() => setShowOriginal((v) => !v)}>
-            {showOriginal ? t(myLanguage, "hideOriginal") : t(myLanguage, "showOriginal")}
-          </button>
-          {showOriginal && <p className="original">{message.sourceText}</p>}
-        </>
+        aiMessage ? (
+          <>
+            <p className="bubble">{message.sourceText}</p>
+            <button className="toggle" onClick={() => setShowTranslation((v) => !v)}>
+              {showTranslation
+                ? t(myLanguage, "hideTranslation")
+                : t(myLanguage, "showTranslation")}
+            </button>
+            {showTranslation && <p className="original">{translation.text}</p>}
+          </>
+        ) : (
+          <>
+            <p className="bubble">{translation.text}</p>
+            <button className="toggle" onClick={() => setShowOriginal((v) => !v)}>
+              {showOriginal ? t(myLanguage, "hideOriginal") : t(myLanguage, "showOriginal")}
+            </button>
+            {showOriginal && <p className="original">{message.sourceText}</p>}
+          </>
+        )
       ) : (
         <>
           <p className="bubble">{message.sourceText}</p>
@@ -532,6 +550,7 @@ export default function Chat({
             translationFailed={failedTranslations.has(msg.id)}
             myLanguage={language}
             member={members[msg.senderId]}
+            aiMessage={room.ai !== undefined && msg.senderId.startsWith(AI_SENDER_PREFIX)}
             onOpenCard={setCardUserId}
             onReport={(reason) => reportMessage(msg.id, reason)}
           />

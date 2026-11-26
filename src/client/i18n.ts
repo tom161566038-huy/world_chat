@@ -90,6 +90,8 @@ interface Strings {
   sendBtn: string
   showOriginal: string
   hideOriginal: string
+  showTranslation: string
+  hideTranslation: string
   translating: string
   translationFailed: string
   inviteBtn: string
@@ -238,6 +240,8 @@ const STRINGS: Record<string, Strings> = {
     sendBtn: "发送",
     showOriginal: "查看原文",
     hideOriginal: "收起原文",
+    showTranslation: "查看译文",
+    hideTranslation: "收起译文",
     translating: "翻译中…",
     translationFailed: "翻译暂时不可用，可点此查看原文",
     inviteBtn: "邀请",
@@ -378,6 +382,8 @@ const STRINGS: Record<string, Strings> = {
     sendBtn: "Send",
     showOriginal: "Show original",
     hideOriginal: "Hide original",
+    showTranslation: "Show translation",
+    hideTranslation: "Hide translation",
     translating: "Translating…",
     translationFailed: "Translation unavailable — tap to view the original",
     inviteBtn: "Invite",
@@ -519,6 +525,8 @@ const STRINGS: Record<string, Strings> = {
     sendBtn: "送信",
     showOriginal: "原文を見る",
     hideOriginal: "原文を閉じる",
+    showTranslation: "翻訳を見る",
+    hideTranslation: "翻訳を閉じる",
     translating: "翻訳中…",
     translationFailed: "翻訳できません。タップで原文を確認",
     inviteBtn: "招待",
@@ -659,6 +667,8 @@ const STRINGS: Record<string, Strings> = {
     sendBtn: "Enviar",
     showOriginal: "Ver original",
     hideOriginal: "Ocultar original",
+    showTranslation: "Ver traducción",
+    hideTranslation: "Ocultar traducción",
     translating: "Traduciendo…",
     translationFailed: "Traducción no disponible; toca para ver el original",
     inviteBtn: "Invitar",
@@ -799,6 +809,8 @@ const STRINGS: Record<string, Strings> = {
     sendBtn: "Envoyer",
     showOriginal: "Voir l'original",
     hideOriginal: "Masquer l'original",
+    showTranslation: "Voir la traduction",
+    hideTranslation: "Masquer la traduction",
     translating: "Traduction…",
     translationFailed: "Traduction indisponible — touchez pour voir l'original",
     inviteBtn: "Inviter",

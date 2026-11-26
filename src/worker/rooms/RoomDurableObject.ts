@@ -1,5 +1,5 @@
 import type { ClientEvent, ProfilePayload, ServerEvent } from "../../shared/protocol"
-import { AI_ROOM_AI } from "../../shared/rooms"
+import { AI_ROOM_AI, AI_SENDER_PREFIX } from "../../shared/rooms"
 import type { OccupancyUpdate } from "../../shared/roomDirectory"
 import type {
   ChatMessage,
@@ -177,12 +177,6 @@ function sanitizeProfile(
 
 /** 自建房间元数据键：{ closesAt }。内置房间不写这个键、不设 Alarm。 */
 const META_KEY = "room:meta"
-
-/**
- * AI 场景房（阶段 15）：AI 伙伴的发送者 id 前缀。以它开头的消息不再触发
- * AI 回复（防自激）；人设表在 src/shared/rooms.ts 的 AI_ROOM_AI。
- */
-const AI_SENDER_PREFIX = "ai:"
 
 /** 每房间 AI 回复节流窗口：窗口内最多 1 条（键 `airate:`，复用 loadWindow）。 */
 const AI_RATE_WINDOW_MS = 15_000

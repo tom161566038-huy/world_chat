@@ -420,3 +420,11 @@
   过期恢复）、每日 200 条封顶、拒答套话不发消息、普通房 lobby 无 AI
   行为，全部通过。真实 glm 回复质量与线上体验待部署后按 DEPLOY.md
   清单复测。
+- AI 房保持英文（2026-11-26 修订，commit 本次）：用户反馈中文界面下
+  AI 房变成「纯中文聊天」——两层修复：① systemPrompt 末句改为
+  「Always reply in casual English only, even if the user writes in
+  another language」，压住 glm 被中文带跑；② Chat.tsx 中 AI 消息
+  （room.ai 存在且 senderId 为 `ai:` 前缀，常量挪到 shared/rooms.ts
+  前后端共用）反转为主显英文原文、译文点「查看译文」才展开
+  （i18n ×5 补 showTranslation/hideTranslation）；普通房间与用户
+  自己的消息展示逻辑不动。
