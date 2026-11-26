@@ -491,6 +491,8 @@ closesAt 不受影响。隐私说明五语言同步补一句「自建房到期�
       （主题名移至 themeNames.ts）；隐私说明 ×5 补「房主上传的房间
       背景存房间存储，房间关闭时删除」。
 
+上线（2026-11-26）：已推送并部署，线上版本 `0b17e0a8-d717-4172-91e8-ab23275e3b17`。
+
 验证：tsc 两份 tsconfig + vite build 全过；本地 wrangler dev 实测——
 建房带主题、垃圾标题 filtered、非法 theme invalid_theme、
 isCreator 仅 ?creator= 命中时出现、非房主换主题/传图 403 forbidden、
